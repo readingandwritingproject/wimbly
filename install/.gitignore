@@ -1,6 +1,4 @@
-# Keep some directories
-#!/openresty
-#!/luarocks
-#!/libcsv
-#!/libs3
-#/*
+/*
+!openresty
+!libs3
+!libcsv
