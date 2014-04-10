@@ -1,5 +1,5 @@
 # Keep some directories
-!openresty
-!luarocks
-!libcsv
-!libs3
+!openresty/*
+!luarocks/*
+!libcsv/*
+!libs3/*
