@@ -3,5 +3,13 @@ $ sudo apt-get install libpodofo
 
 $ sudo apt-get install libpodofo-dev
  
+$ ./build.sh 
+ 
 $ export WIMBLY_PATH=/var/www
+
+$ mkdir $WIMBLY_PATH/libpdf
+
+$ cp libpdf.so $WIMBLY_PATH/libpdf
+
+$ cp libpdf.lua $WIMBLY_PATH/libpdf
 
