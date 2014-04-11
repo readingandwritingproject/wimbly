@@ -17,3 +17,5 @@ $ make
 $ make install
 
 # after the install remove nginx/html and all in nginx/conf except nginx.conf and mime.types)
+
+$ mkdir -p $WIMBLY_PATH/nginx/tmp/client-body
