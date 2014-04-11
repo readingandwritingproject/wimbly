@@ -1,5 +1,7 @@
 
 $ sudo apt-get install libpodofo
 
+$ sudo apt-get install libpodofo-dev
+ 
 $ export WIMBLY_PATH=/var/www
 
