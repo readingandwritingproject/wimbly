@@ -1,6 +1,6 @@
 
 local email = {
-  client = 'connect.readingandwritingproject.com'
+  client = 'wimbly'
 }
 
 function email.send( options )
