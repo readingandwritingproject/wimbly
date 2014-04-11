@@ -1,3 +1,4 @@
+
 $ sudo apt-get install libpcre3
 
 $ sudo apt-get install libssl-dev
@@ -16,6 +17,11 @@ $ make
 
 $ make install
 
-# after the install remove nginx/html and all in nginx/conf except nginx.conf and mime.types)
+# after the install remove nginx/html and all in nginx/conf except nginx.conf and mime.types
+
+$ rm -r $WIMBLY_PATH/nginx/html
+
+$ rm $WIMBLY_PATH/nginx/conf/fast* $WIMBLY_PATH/nginx/conf/koi* $WIMBLY_PATH/nginx/conf/scgi* $WIMBLY_PATH/nginx/conf/uwsgi* $WIMBLY_PATH/nginx/conf/nginx.conf.default $WIMBLY_PATH/nginx/conf/mime.types.default $WIMBLY_PATH/nginx/conf/win-utf
 
 $ mkdir -p $WIMBLY_PATH/nginx/tmp/client-body
+
