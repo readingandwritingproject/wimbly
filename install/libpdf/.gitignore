@@ -1,4 +1,15 @@
 /*
 !.gitignore
 !INSTALL
+
 !libpdf.lua
+
+!build.sh
+
+!libpdf.cpp
+!libpdf.h
+
+!dancing_girl.jpg  
+!one.pdf  
+!two.pdf
+!original.pdf  

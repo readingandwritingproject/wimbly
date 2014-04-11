@@ -1,13 +1,5 @@
 
-# get latest libcsv (http://sourceforge.net/projects/libcsv/)
-
-$ tar -xzvf libcsv.tar.gz .
-
-$ cd libcsv
+$ sudo apt-get install libpodofo
 
 $ export WIMBLY_PATH=/var/www
-
-$ ./configure --prefix=$WIMBLY_PATH/libcsv
-
-$ make install
 
