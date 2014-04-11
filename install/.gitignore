@@ -1,5 +1,6 @@
 /*
 !.gitignore
 !openresty
-!libs3
 !libcsv
+!libs3
+!luarocks
