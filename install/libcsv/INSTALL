@@ -1,0 +1,13 @@
+
+# get latest libcsv (http://sourceforge.net/projects/libcsv/)
+
+$ tar -xzvf libcsv.tar.gz .
+
+$ cd libcsv
+
+$ export WIMBLY_PATH=/var/www
+
+$ ./configure --prefix=$WIMBLY_PATH/libcsv
+
+$ make install
+
