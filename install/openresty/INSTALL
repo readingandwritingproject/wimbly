@@ -25,3 +25,5 @@ $ rm $WIMBLY_PATH/nginx/conf/fast* $WIMBLY_PATH/nginx/conf/koi* $WIMBLY_PATH/ngi
 
 $ mkdir -p $WIMBLY_PATH/nginx/tmp/client-body
 
+# for an example copy install/openresty/nginx.conf to $WIMBLY_PATH/nginx/conf
+

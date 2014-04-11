@@ -1,3 +1,4 @@
+
 $ sudo apt-get install zip
 
 # get latest luarocks (http://luarocks.org)
@@ -14,6 +15,11 @@ $ make build
 
 $ make install
 
+# sometimes luajit needs a symlink to be happy
+
+# (only if an error with luarocks finding luajit!)
+$ ln -s $WIMBLY_PATH/luajit/bin/luajit-2.1.0-alpha $WIMBLY_PATH/luajit/bin/luajit
+
 $ $WIMBLY_PATH/luajit/bin/luarocks install uuid
 
 $ $WIMBLY_PATH/luajit/bin/luarocks install date
@@ -23,3 +29,6 @@ $ $WIMBLY_PATH/luajit/bin/luarocks install bcrypt
 $ $WIMBLY_PATH/luajit/bin/luarocks install inspect
 
 $ $WIMBLY_PATH/luajit/bin/luarocks install middleclass
+
+$ $WIMBLY_PATH/luajit/bin/luarocks install LuaFileSystem
+
