@@ -2,7 +2,7 @@ wimbly
 ======
 
 - create user wimbly
-$ useradd wimbly
+$ sudo useradd wimbly
 
 - add your user accounts to the wimbly group in /etc/groups
 
