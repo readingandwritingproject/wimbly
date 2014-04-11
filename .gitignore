@@ -5,3 +5,5 @@
 application/*
 !application/WIMBLY_APPLICATIONS_GO_HERE
 !static
+static/*
+!static/STATIC_FILES_GO_HERE
