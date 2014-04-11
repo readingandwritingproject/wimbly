@@ -14,4 +14,4 @@ static/*
 
 !lualib
 lualib/*
-!lublib/wimbly
+!lualib/wimbly
