@@ -1,0 +1,43 @@
+
+# get latest unixodbc (http://unixodbc.org)
+
+$ tar -xzvf unixodbc.tar.gz .
+
+$ cd unixodbc
+
+$ export WIMBLY_PATH=/var/www
+
+$ ./configure --prefix=$WIMBLY_PATH/unixodbc
+
+$ make
+
+$ make install
+
+# get latest freetds (http://freetds.org)
+
+$ tar -xzvf freetds.tar.gz
+
+$ cd freetds
+
+$ ./configure --with-unixodbc=$WIMBLY_PATH/unixodbc --prefix=$WIMBLY_PATH/freetds
+
+$ make
+
+$ make install
+
+# a patch is needed to $WIMBLY_PATH/unixodbc/include/sql.h
+
+| #ifndef VOID
+| #define VOID void
+| #endif
+
+$ $WIMBLY_PATH/luajit/bin/luarocks install odbc ODBC_DIR=$WIMBLY_PATH/unixodbc
+
+$ cd $WIMBLY_PATH
+
+$ unixodbc/bin/odbcinst -q -s (to list DSNs)
+
+$ unixodbc/bin/odbcinst -i -s -l -f unixodbc/etc/ODBCDataSources/tds.dsn.streamline-production (to update a DSN)
+
+$ unixodbc/bin/odbcinst -u -s -l -n streamline-production (to remove a DSN)
+
