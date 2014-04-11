@@ -1,7 +1,19 @@
 $ sudo apt-get install libpcre3
+
 $ sudo apt-get install libssl-dev
+
 # get latest openresty (http://openresty.org)
+
 $ tar -xzvf ngx_openresty.tar.gz .
+
 $ cd ngx_openresty
+
 $ export WIMBLY_PATH=/var/www
+
 $ ./configure --with-luajit --with-http_gunzip_module --with-http_gzip_static_module --prefix=$WIMBLY_PATH --http-client-body-temp-path=$WIMBLY_PATH/nginx/tmp/client-body --http-proxy-temp-path=$WIMBLY_PATH/nginx/tmp/proxy --http-fastcgi-temp-path=$WIMBLY_PATH/nginx/tmp/fastcgi --http-uwsgi-temp-path=$WIMBLY_PATH/nginx/tmp/uwsgi --http-scgi-temp-path=$WIMBLY_PATH/nginx/tmp/scgi --conf-path=$WIMBLY_PATH/nginx/conf/nginx.conf
+
+$ make
+
+$ make install
+
+# after the install remove nginx/html and all in nginx/conf except nginx.conf and mime.types)

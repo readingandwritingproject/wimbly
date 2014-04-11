@@ -1,0 +1,14 @@
+
+# get latest luarocks (http://luarocks.org)
+
+$ tar -xzvf luarocks.tar.gz .
+
+$ cd luarocks
+
+$ export WIMBLY_PATH=/var/www
+
+$ ./configure --prefix=$WIMBLY_PATH/luajit --with-lua=$WIMBLY_PATH/luajit --lua-suffix=jit --with-lua-include=$WIMBLY_PATH/luajit/include/luajit-2.1
+
+$ make build
+
+$ make install
