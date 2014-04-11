@@ -2,4 +2,6 @@
 !.gitignore
 !install
 !application
+application/*
+!application/WIMBLY_APPLICATIONS_GO_HERE
 !static
