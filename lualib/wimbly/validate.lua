@@ -40,6 +40,11 @@ function validate.field( name, value, mapping )
       return false, "'"..name.."' fails pattern validation '"..mapping.pattern.."'"
     end
 
+    -- if a validation function was provided in mapping
+    if mapping.validation and type( mapping.validation ) == 'function' then
+      return mapping.validation( value )
+    end
+
   end -- if a mapping entry exists
 
   return true
