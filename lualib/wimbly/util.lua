@@ -1,4 +1,3 @@
-
 -- string convenience methods
 
 -- starts with?
@@ -161,7 +160,7 @@ end
 
 
 function table.indexof( t, value )
-  for index, element in ipairs( t ) do
+  for index, element in pairs( t ) do
     if value == element then
       return index
     end
