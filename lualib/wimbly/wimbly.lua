@@ -44,8 +44,12 @@ function wimbly.preprocess( path, replacements )
 
     -- write changes
     local f = io.open( source:gsub( '.source$', '' ), 'w' )   
-    f:write( conf )
-    f:close()
+    
+    ngx.log( ngx.DEBUG, 'in here...' )
+    if f then
+      f:write( conf )
+      f:close()
+    end
     
   end
   
