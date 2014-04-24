@@ -34,6 +34,8 @@ function wimbly.preprocess( path, replacements )
   
   local confs = wimbly.find( path, '%.conf%.source$' )
   
+  ngx.log( ngx.DEBUG, 'wimbly preprocessing...' )
+  
   for _, source in ipairs( confs ) do
     -- load contents
     local f = io.open( source, 'r' )
@@ -45,7 +47,6 @@ function wimbly.preprocess( path, replacements )
     -- write changes
     local f = io.open( source:gsub( '.source$', '' ), 'w' )   
     
-    ngx.log( ngx.DEBUG, 'in here...' )
     if f then
       f:write( conf )
       f:close()
