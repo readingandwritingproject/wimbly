@@ -6,14 +6,105 @@ local validate = {
 see Institute.propertyMapping for an example of a valid field to property mapping
 --]]
 
+-- example types:
+-- string array
+-- whole number array
+-- sqldate
+-- yesno array
+
 
 function validate.field( name, value, mapping )
   if ( mapping == nil ) then
-    return false, "unable to validate field '"..name.."'"
+    return false, "unable to validate field '"..name.."' without a mapping"
   else
 
+    -- don't use the original mapping table so that it does not get modified by validation
+    local mapping = table.copy( mapping )
+  
+    if mapping.type and type( mapping.type ) == 'string' then
+  
+      -- handle an array of values if type ends with 'array'
+      if mapping.type:ends( 'array' ) then
+        --ngx.say( '!!!!' )
+        mapping.type = mapping.type:match( '(.+)array' )
+        if type( value ) == 'table' then
+          for _, val in ipairs( value ) do
+            local res, err = validate.field( name, val, mapping )
+            if not res then return res, err end
+          end
+          mapping.type = nil
+        end
+      -- handle a string comma separated list if type ends with 'list'
+      elseif mapping.type:ends( 'list' ) then
+        mapping.type = mapping.type:match( '(.+)list' )
+        if type( value ) == 'string' then
+          for _, val in ipairs( value:split( ',' ) ) do
+            --ngx.say( val )
+            local res, err = validate.field( name, val, mapping )
+            if not res then return res, err end
+          end
+          mapping.type = nil
+        end
+      end
+      
+    end
+  
+    -- cannot handle table values
+    if mapping.type and type( value ) == 'table' then
+      return false, "validate can only occur on table values if the mapping type ends with 'array'"
+    end
+  
     -- if a mapping type was specified
-    if mapping.type and value ~= false then
+    if mapping.type and type( mapping.type ) == 'string' and value ~= false then
+    
+      -- remove spaces and underscores from type
+      mapping.type = mapping.type:gsub( '[_ ]', '' ):lower()
+      
+      if mapping.type == 'sqldate' or mapping.type == 'date' then
+        if not validate.type.sqldate( value ) then
+          return false, "'"..name.."' requires a valid date, '"..value.."' is invalid"
+        end
+      elseif mapping.type == 'integer' or mapping.type == 'integernumber' then
+        if not validate.type.integernumber( value ) then
+          return false, "'"..name.."' requires a integer number value, '"..value.."' is invalid"
+        end
+      elseif mapping.type == 'rational' or mapping.type == 'rationalnumber' then
+        if not validate.type.rationalnumber( value ) then
+          return false, "'"..name.."' requires a rational number value, '"..value.."' is invalid"
+        end
+      elseif mapping.type == 'wholenumber' then
+        if not validate.type.wholenumber( value ) then
+          return false, "'"..name.."' requires a whole number value, '"..value.."' is invalid"
+        end
+      elseif mapping.type == 'boolean' then
+        if not validate.type.boolean( value ) then
+          return false, "'"..name.."' must be of type 'boolean', '"..type( value ).."' is invalid"
+        end
+      elseif mapping.type == 'enumeration' then
+        if not validate.type.enumeration( value, mapping.values ) then
+          local values
+          if table.isarray( mapping.values ) then values = mapping.values else values = table.keys( mapping.values ) end
+          return false, "'"..name.."' must be of one of '"..table.concat( values, "', '" ).."'"
+        end
+      elseif mapping.type == 'email' or mapping.type == 'emailaddress' then
+        if not validate.type.emailaddress( value ) then
+          return false, "'"..name.."' must be a valid email address, '"..value.."' is invalid"
+        end
+      elseif mapping.type == 'yesno' then
+        if not validate.type.yesno( value ) then
+          return false, "'"..name.."' must be either 'yes' or 'no', '"..value.."' is invalid"
+        end        
+      elseif mapping.type == 'string' then
+        if not type( value ) == 'string' then
+          return false, "'"..name.."' should be of type 'string', '"..type( value ).."' is invalid"
+        end
+      else
+        return false, "no method found to validate '"..name.."' as type '"..mapping.type.."'"
+      end
+      
+      --]=]
+      
+      --[[
       if mapping.type == 'date' and not validate.type.sqldate( value ) then
         return false, "'"..name.."' requires a valid date, '"..value.."' is invalid"
       elseif mapping.type == 'dates' and not validate.type.sqldates( value ) then
@@ -32,11 +123,15 @@ function validate.field( name, value, mapping )
         return false, "'"..name.."' must be of one of '"..table.concat( values, "', '" ).."'"
       elseif mapping.type == 'string' and not type( value ) == 'string' then
         return false, "'"..name.."' should be of type 'string', '"..type( value ).."' is invalid"
+      --else
+        --return false, "no method found to validate '"..name.."' as type '"..mapping.type.."'"
       end
+      --]]
+      
     end
 
     -- if a mapping pattern was specified
-    if mapping.pattern and value ~= false and not value:match( mapping.pattern ) then
+    if mapping.pattern and value ~= false and type( value ) == 'string' and not value:match( mapping.pattern ) then
       return false, "'"..name.."' fails pattern validation '"..mapping.pattern.."'"
     end
 
@@ -74,11 +169,13 @@ function validate.for_creation( posted, mapping, options )
     if type( name ) ~= 'string' or type( value ) ~= 'string' then
       error( "table 'posted' passed to validate.for_creation must be composed only of string values" )
     end
-
+    
+    --ngx.say( value )
+    
     -- for values that should not be strings convert datatypes to match mapping and validate
-    if mapping[name] and ( mapping[name].type == 'boolean' or mapping[name].type == 'integernumber' or mapping[name].type == 'wholenumber' or mapping[name].type == 'rationalnumber' ) then
+    if mapping[name] and mapping[name].type and ( mapping[name].type == 'boolean' or mapping[name].type:match( 'number' ) ) then --.type == 'integernumber' or mapping[name].type == 'wholenumber' or mapping[name].type == 'rationalnumber' ) then
       local original = value
-      if mapping[name].type:match( 'number' ) then
+      if mapping[name].type:match( 'number' ) and original:match( '^%d+%.?%d-$' ) then
         -- convert to number
         value = tonumber( original )
       else
@@ -89,7 +186,7 @@ function validate.for_creation( posted, mapping, options )
       end
 
       local valid = validate.type[ mapping[name].type ]( value )
-      if ( not valid and not ( value == nil and not mapping[name].required ) ) or not original:match( '^%d+%.?%d-$' ) then
+      if ( not valid and not ( value == nil and not mapping[name].required ) ) then
         table.insert( errors, { name = name, message = "'"..name.."' requires a "..mapping[name].type:gsub( 'number', ' number' ).." value, '"..original.."' is invalid" } )
       else
         posted[name] = value
@@ -192,7 +289,7 @@ end
 
 -- check whether string could be a sqldate
 function validate.type.sqldate( str )
-  local y, m, d = str:match( '([1-2][9,0]%d%d)%-([0-1][0-9])%-([0-3][0-9])' )
+  local y, m, d = str:match( '^([1-2][9,0]%d%d)%-([0-1][0-9])%-([0-3][0-9])$' )
 
   if y ~= nil and m ~= nil and d ~= nil then
 
@@ -252,15 +349,20 @@ function validate.type.wholenumber( num )
   return ( type( num ) == 'number' and cleaned:match( '^%d+$' ) ), cleaned
 end
 
+function validate.type.boolean( bool )
+  local cleaned = tostring( bool )
+  return type( bool ) == 'boolean', cleaned
+end
+
 function validate.type.yesno( str )
-  local cleaned = str:lower():trim()
+  local cleaned = tostring( str )
+  cleaned = str:lower():trim()
   return ( cleaned == 'yes' or cleaned == 'no' ), cleaned
 end
 
-function validate.type.boolean( bool )
-  --local cleaned = tostring( str )
-  --str:lower():trim()
-  return type( bool ) == 'boolean', cleaned
+function validate.type.emailaddress( str )
+  local cleaned = tostring( str )
+  return ( cleaned:match( "[A-Za-z0-9%.%%%+%-]+@[A-Za-z0-9%.%%%+%-]+%.%w%w%w?%w?" ) ), cleaned
 end
 
 return validate

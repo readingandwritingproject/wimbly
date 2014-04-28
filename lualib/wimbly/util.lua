@@ -106,6 +106,23 @@ function table.pack(...)
 end
 
 
+function table.copy( original )
+  local original_type = type( original )
+  local copy
+  if original_type == 'table' then
+    copy = {}
+    for original_key, original_value in next, original, nil do
+      copy[table.copy( original_key ) ] = table.copy( original_value )
+    end
+    -- use the same metatable (do not copy that too)
+    setmetatable( copy, getmetatable( original ) )
+  else -- number, string, boolean, etc
+    copy = original
+  end
+  return copy
+end
+
+
 -- return table keys as an array
 function table.keys( t, quotes )
   local quotes = quotes or ''
