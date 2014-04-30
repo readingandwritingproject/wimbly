@@ -1,0 +1,11 @@
+
+# get latest redis (http://redis.io/download)
+
+$ tar -xzvf redis.tar.gz .
+
+$ cd redis
+
+$ export WIMBLY_PATH=/var/www
+
+$ make PREFIX=$WIMBLY_PATH/redis install
+
