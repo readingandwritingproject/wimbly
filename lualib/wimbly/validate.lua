@@ -25,7 +25,6 @@ function validate.field( name, value, mapping )
   
       -- handle an array of values if type ends with 'array'
       if mapping.type:ends( 'array' ) then
-        --ngx.say( '!!!!' )
         mapping.type = mapping.type:match( '(.+)array' )
         if type( value ) == 'table' then
           for _, val in ipairs( value ) do
@@ -39,7 +38,6 @@ function validate.field( name, value, mapping )
         mapping.type = mapping.type:match( '(.+)list' )
         if type( value ) == 'string' then
           for _, val in ipairs( value:split( ',' ) ) do
-            --ngx.say( val )
             local res, err = validate.field( name, val, mapping )
             if not res then return res, err end
           end
@@ -102,32 +100,6 @@ function validate.field( name, value, mapping )
         return false, "no method found to validate '"..name.."' as type '"..mapping.type.."'"
       end
       
-      --]=]
-      
-      --[[
-      if mapping.type == 'date' and not validate.type.sqldate( value ) then
-        return false, "'"..name.."' requires a valid date, '"..value.."' is invalid"
-      elseif mapping.type == 'dates' and not validate.type.sqldates( value ) then
-        return false, "'"..name.."' requires a list of valid dates, '"..value.."' is invalid"
-      elseif mapping.type == 'integernumber' and not validate.type.integernumber( value ) then
-        return false, "'"..name.."' requires a integer number value, "..value.." is invalid"
-      elseif mapping.type == 'rationalnumber' and not validate.type.rationalnumber( value ) then
-        return false, "'"..name.."' requires a rational number value, "..value.." is invalid"
-      elseif mapping.type == 'wholenumber' and not validate.type.wholenumber( value ) then
-        return false, "'"..name.."' requires a whole number value, "..value.." is invalid"
-      elseif mapping.type == 'boolean' and not type( value ) == 'boolean' then
-        return false, "'"..name.."' must be of type 'boolean', '"..type( value ).."' is invalid"
-      elseif mapping.type == 'enumeration' and not validate.type.enumeration( value, mapping.values ) then
-        local values
-        if table.isarray( mapping.values ) then values = mapping.values else values = table.keys( mapping.values ) end
-        return false, "'"..name.."' must be of one of '"..table.concat( values, "', '" ).."'"
-      elseif mapping.type == 'string' and not type( value ) == 'string' then
-        return false, "'"..name.."' should be of type 'string', '"..type( value ).."' is invalid"
-      --else
-        --return false, "no method found to validate '"..name.."' as type '"..mapping.type.."'"
-      end
-      --]]
-      
     end
 
     -- if a mapping pattern was specified
@@ -146,67 +118,109 @@ function validate.field( name, value, mapping )
 end
 
 
-function validate.for_creation( posted, mapping, options )
+function validate.convert( name, value, typ, options )
+  local options = options or {}
+    
+  if type( name ) ~= 'string' or type( value ) ~= 'string' or type( typ ) ~= 'string' then 
+    ngx.exit( ngx.OK )
+    error( "convert must be called with strings" ) 
+  end
+  
+  local success = true
+  
+  local original = value
+  if typ:match( '^integer' ) or typ:match( '^rational' ) or typ:match( 'number' ) then
+    value = tonumber( original )
+    if not original:match( tostring( value ) ) then success = false end
+  elseif typ:match( '^boolean' ) then
+    value = ( value:trim():lower() == 'true' )
+  end
+  
+  if options.unescape and type( value ) == 'string' then
+    value = ngx.unescape_uri( value )
+  end
+  
+  return success, value 
+end
+
+
+function validate.transform( posted, mapping, options )
   local options = options or {}
 
-  local received = posted
   local errors = {}
+  local cleaned = table.copy( posted )
+  
+  -- check that all required fields are present 
+  if options.required then
+    for name, values in pairs( mapping ) do
+      if ( not cleaned[name] or ( type( cleaned[name] ) == 'string' and cleaned[name]:trim() == '' ) ) and values.required then
+        table.insert( errors, { name = name, message = "'"..name.."' is required" } )
+      end
+    end
+  end
+  
+  local converted, success
+     
+  -- if valid conversions convert posted string fields to the intended data types in 'cleaned'
+  for name, value in pairs( cleaned ) do
+    if type( name ) ~= 'string' then error( "table 'posted' must be composed only of string keys" ) end
+  
+    if type( value ) == 'table' then
+      converted = {}
+      
+      for index, val in ipairs( value ) do
+        if type( val ) == 'string' then
+          if mapping[name].type then
+            success, converted[index] = validate.convert( name, val, mapping[name].type, options )
+            if not success then table.insert( errors, { name = name, message = "value in '"..name.."' table could not be converted to type '"..mapping[name].type.."'" } ) end
+          else
+            converted[index] = val
+          end
+        else
+          table.insert( errors, { name = name, message = "'"..name.."' must be a table of strings" } )
+        end
+      end
+      
+    elseif type( value ) == 'string' then
+      if mapping[name] and mapping[name].type then
+        success, converted = validate.convert( name, value, mapping[name].type, options )
+        if not success then table.insert( errors, { name = name, message = "value in '"..name.."' field could not be converted to type '"..mapping[name].type.."'" } ) end
+      else
+        converted = value
+      end
+    else
+      table.insert( errors, { name = name, message = "'"..name.."' must be of type string" } )
+    end
+    
+    cleaned[name] = converted
+  end
+  
+  return #errors == 0, errors, cleaned 
+end
+
+
+function validate.for_creation( posted, mapping, options )
+  local options = options or {}
 
   if ( mapping == nil ) then
     return false, "unable to validate"
   end
 
-  -- check that all required fields were submitted
-  for name, values in pairs( mapping ) do
-    if ( not posted[name] or posted[name]:trim() == '' ) and values.required then
-      table.insert( errors, { name = name, message = "'"..name.."' is required" } )
-    end
-  end
-
-  -- validate submitted fields
-  for name, value in pairs( received ) do
-
-    if type( name ) ~= 'string' or type( value ) ~= 'string' then
-      error( "table 'posted' passed to validate.for_creation must be composed only of string values" )
-    end
-    
-    --ngx.say( value )
-    
-    -- for values that should not be strings convert datatypes to match mapping and validate
-    if mapping[name] and mapping[name].type and ( mapping[name].type == 'boolean' or mapping[name].type:match( 'number' ) ) then --.type == 'integernumber' or mapping[name].type == 'wholenumber' or mapping[name].type == 'rationalnumber' ) then
-      local original = value
-      if mapping[name].type:match( 'number' ) and original:match( '^%d+%.?%d-$' ) then
-        -- convert to number
-        value = tonumber( original )
-      else
-        -- convert to boolean
-        if value:trim():lower() == 'true' or value:trim():lower() == 'false' then
-          value = ( value:trim():lower() == 'true' )
-        end
-      end
-
-      local valid = validate.type[ mapping[name].type ]( value )
-      if ( not valid and not ( value == nil and not mapping[name].required ) ) then
-        table.insert( errors, { name = name, message = "'"..name.."' requires a "..mapping[name].type:gsub( 'number', ' number' ).." value, '"..original.."' is invalid" } )
-      else
-        posted[name] = value
-      end
-    else
-      -- unescape?
-      if options.unescape then
-        posted[name] = ngx.unescape_uri( value )
-      end
-
-      -- validate the rest
-      local valid, message = validate.field( name, value, mapping[name] )
-      if not valid then
-        table.insert( errors, { name = name, message = message } )
-      end
+  -- check that all required fields are present
+  options.required = true
+  local success, errors, cleaned = validate.transform( posted, mapping, options )
+  
+  -- now validate the transformed submission
+  for name, value in pairs( cleaned ) do
+      
+    local valid, message = validate.field( name, value, mapping[name] )
+    if not valid then
+      table.insert( errors, { name = name, message = message } )
     end
 
   end -- iterate through the values
 
-  return #errors == 0, errors
+  return #errors == 0, errors, cleaned
 end
 
 
@@ -216,54 +230,30 @@ end
 
 
 function validate.for_update( posted, mapping )
-  local received = posted
-  local errors = {}
+  local options = options or {}
 
   if ( mapping == nil ) then
-    return false, "unable to validate 'posted'"
+    return false, "unable to validate"
   end
 
-  for name, value in pairs( received ) do
-
-    if type( name ) ~= 'string' or type( value ) ~= 'string' then
-      error( "table 'posted' passed to validate.for_update must be composed only of string values" )
-    end
-
+  local success, errors, cleaned = validate.transform( posted, mapping, options )
+  
+  -- now validate the transformed submission
+  for name, value in pairs( cleaned ) do
+      
     -- if readonly was specified
     if value and mapping[name] and mapping[name].readonly then
       table.insert( errors, { name = name, message = "'"..name.."' is readonly" } )
     end
-
-    -- for values that should not be strings convert datatypes to match mapping and validate
-    if mapping[name] and ( mapping[name].type == 'boolean' or mapping[name].type == 'integernumber' or mapping[name].type == 'wholenumber' ) then
-      local original = value
-      if mapping[name].type:match( 'number' ) then
-        -- convert to number
-        value = tonumber( original )
-      else
-        -- convert to boolean
-        if value:trim():lower() == 'true' or value:trim():lower() == 'false' then
-          value = ( value:trim():lower() == 'true' )
-        end
-      end
-
-      local valid = validate.type[ mapping[name].type ]( value )
-      if ( not valid and not ( value == nil and not mapping[name].required ) ) or not original:match( '^%d+%.?%d-$' ) then
-        table.insert( errors, { name = name, message = "'"..name.."' requires a "..mapping[name].type:gsub( 'number', ' number' ).." value, '"..original.."' is invalid" } )
-      else
-        posted[name] = value
-      end
-    else
-      -- validate the rest
-      local valid, message = validate.field( name, value, mapping[name] )
-      if not valid then
-        table.insert( errors, { name = name, message = message } )
-      end
+      
+    local valid, message = validate.field( name, value, mapping[name] )
+    if not valid then
+      table.insert( errors, { name = name, message = message } )
     end
 
   end -- iterate through the values
 
-  return #errors == 0, errors
+  return #errors == 0, errors, cleaned
 end
 
 

@@ -41,14 +41,14 @@ function RESTfully.validate( parameters_mapping )
     params[name] = mapping.source
   end
   
-  local success, errors = validate.parameters( params, parameters_mapping )
+  local success, errors, cleaned = validate.parameters( params, parameters_mapping )
   if not success then
     ngx.status = ngx.HTTP_BAD_REQUEST
     restfully.json( errors )
     return ngx.exit( ngx.OK )
   end
   
-  return params 
+  return cleaned
   
 end
 
@@ -149,8 +149,8 @@ function RESTfully.POST.create( model_path )
 
   --local validate = require( 'lib/validate' )
 
-  local valid, errors = validate.for_creation( posted, BusinessModel.detailMapping )
-
+  local valid, errors, cleaned = validate.for_creation( posted, BusinessModel.detailMapping )
+  
   local results = {}
   local model = nil
 
@@ -159,7 +159,7 @@ function RESTfully.POST.create( model_path )
     results.message = 'submitted '..model_name..' values are invalid'
     results.errors = errors
   else
-    local success, result = BusinessModel:insert( posted )
+    local success, result = BusinessModel:insert( cleaned )
     if not success then
       ngx.status = ngx.HTTP_BAD_REQUEST
       results.message = model_name..' creation failed'
@@ -228,16 +228,14 @@ function RESTfully.POST.details( model_path, loader, load_parameter )
     ngx.req.read_body()
     local posted = ngx.req.get_post_args()
 
-    --local validate = require( 'lib/validate' )
-
-    local valid, errors = validate.for_update( posted, BusinessModel.detailMapping )
+    local valid, errors, cleaned = validate.for_update( posted, BusinessModel.detailMapping )
 
     if not valid then
       ngx.status = ngx.HTTP_BAD_REQUEST
       results.message = 'submitted '..model_name..' values are invalid'
       results.errors = errors
     else
-      local success, errors = business_object:update( posted )
+      local success, errors = business_object:update( cleaned )
       if not success then
         ngx.status = ngx.HTTP_BAD_REQUEST
         results.message = model_name..' update failed'

@@ -36,13 +36,24 @@ function http.accept_form_with_uploads()
         file = io.open( tmpfile, 'w+' )
         posted[key] = tmpfile
       end
+
+      --ngx.say( typ, key )
+
       
     elseif typ == 'body' then
     
       if filename then 
         file:write( res ) 
       else
-        posted[key] = res
+        if not posted[key] then
+          posted[key] = res
+        elseif type( posted[key] ) == 'table' then
+          table.insert( posted[key], res )
+        else
+          local arr = { posted[key] }
+          arr[2] = res
+          posted[key] = arr
+        end
       end
       
     elseif typ == 'part_end' then
