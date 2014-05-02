@@ -9,3 +9,11 @@ $ export WIMBLY_PATH=/var/www
 
 $ make PREFIX=$WIMBLY_PATH/redis install
 
+$ mkdir $WIMBLY_PATH/redis/conf
+
+$ mkdir $WIMBLY_PATH/redis/logs
+
+$ mkdir $WIMBLY_PATH/redis/data
+
+$ cp ../redis.conf $WIMBLY_PATH/redis/conf
+
