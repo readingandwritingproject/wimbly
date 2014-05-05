@@ -12,14 +12,10 @@ function RESTfully.json( content )
   end
 
   if ngx.var.arg_callback then
-    if not ngx.header.content_type then
-      ngx.header.content_type = 'text/javascript'
-    end
+    ngx.header.content_type = 'text/javascript'
     ngx.say( ngx.var.arg_callback..'( '..content..' );' )
   else
-    if not ngx.header.content_type then
-      ngx.header.content_type = 'text/json'
-    end
+    ngx.header.content_type = 'text/json'
     ngx.say( content )
   end
 end
