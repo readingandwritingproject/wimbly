@@ -127,13 +127,14 @@ function validate.convert( name, value, typ, options )
   end
   
   local success = true
-  
+    
   local original = value
   if typ:match( '^integer' ) or typ:match( '^rational' ) or typ:match( 'number' ) then
     value = tonumber( original )
     if not original:match( tostring( value ) ) then success = false end
   elseif typ:match( '^boolean' ) then
     value = ( value:trim():lower() == 'true' )
+    if not ( original:lower():trim() == 'true' or original:lower():trim() == 'false' ) then success = false end
   end
   
   if options.unescape and type( value ) == 'string' then

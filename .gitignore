@@ -5,6 +5,7 @@
 !stop.sh
 !restart.sh
 !reload.sh
+!develop.sh
 
 !install
 
