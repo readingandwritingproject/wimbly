@@ -118,6 +118,40 @@ function validate.field( name, value, mapping )
 end
 
 
+function validate.fields( fields, mapping, options )
+  local options = options or {}
+  
+  local errors = {}
+  
+  --ngx.say( 'here' )
+
+  -- check for existence and required
+  for name, values in pairs( mapping ) do
+    if values.required and options.create and not fields[name] then
+      table.insert( errors, { name = name, message = "'"..name.."' is required" } )
+    end    
+  end
+  
+  
+  for name, value in pairs( fields ) do
+       
+    -- if options.update is set then readonly must be enforced
+    if value and mapping[name] and mapping[name].readonly and options.update then
+      table.insert( errors, { name = name, message = "'"..name.."' is readonly" } )
+    end
+      
+    local valid, message = validate.field( name, value, mapping[name] )
+    if not valid then
+      table.insert( errors, { name = name, message = message } )
+    end
+
+  end -- iterate through the values
+
+  return #errors == 0, errors
+  
+end
+
+
 function validate.convert( name, value, typ, options )
   local options = options or {}
     
@@ -152,7 +186,7 @@ function validate.transform( posted, mapping, options )
   local cleaned = table.copy( posted )
   
   -- check that all required fields are present 
-  if options.required then
+  if options.create then
     for name, values in pairs( mapping ) do
       if ( not cleaned[name] or ( type( cleaned[name] ) == 'string' and cleaned[name]:trim() == '' ) ) and values.required then
         table.insert( errors, { name = name, message = "'"..name.."' is required" } )
@@ -201,58 +235,75 @@ end
 
 
 function validate.for_creation( posted, mapping, options )
-  local options = options or {}
+  -- check that all required fields are present
+  local options = options or { create = true }
 
   if ( mapping == nil ) then
     return false, "unable to validate"
   end
-
-  -- check that all required fields are present
-  options.required = true
-  local success, errors, cleaned = validate.transform( posted, mapping, options )
+  
+  local transform_success, transform_errors, cleaned = validate.transform( posted, mapping, options ) 
+  -- don't show create (required) errors twice
+  options.create = false
+  local validation_success, validation_errors = validate.fields( cleaned, mapping, options )
+  
+  local errors = {}
+  for i, err in ipairs( transform_errors ) do errors[i] = err end
+  for i, err in ipairs( validation_errors ) do errors[#transform_errors + i] = err end
   
   -- now validate the transformed submission
-  for name, value in pairs( cleaned ) do
+  --for name, value in pairs( cleaned ) do
       
-    local valid, message = validate.field( name, value, mapping[name] )
-    if not valid then
-      table.insert( errors, { name = name, message = message } )
-    end
+    --local valid, message = validate.field( name, value, mapping[name] )
+    --if not valid then
+      --table.insert( errors, { name = name, message = message } )
+    --end
 
-  end -- iterate through the values
+  --end -- iterate through the values
 
   return #errors == 0, errors, cleaned
 end
 
 
 function validate.parameters( params, mapping )
-  return validate.for_creation( params, mapping, { unescape = true } )
+  return validate.for_creation( params, mapping, { create = true, unescape = true } )
 end
 
 
 function validate.for_update( posted, mapping )
-  local options = options or {}
+  -- check that all readonly fields are left alone
+  local options = options or { readonly = true }
 
   if ( mapping == nil ) then
     return false, "unable to validate"
   end
 
-  local success, errors, cleaned = validate.transform( posted, mapping, options )
+  --local success, errors, cleaned = validate.transform( posted, mapping, options )
+
+  local transform_success, transform_errors, cleaned = validate.transform( posted, mapping, options )
+  
+  local validation_success, validation_errors = validate.fields( cleaned, mapping, options )
+  
+  local errors = {}
+  for i, err in ipairs( transform_errors ) do errors[i] = err end
+  for i, err in ipairs( validation_errors ) do errors[#transform_errors + i] = err end
+
+  
   
   -- now validate the transformed submission
-  for name, value in pairs( cleaned ) do
+  --for name, value in pairs( cleaned ) do
       
     -- if readonly was specified
-    if value and mapping[name] and mapping[name].readonly then
-      table.insert( errors, { name = name, message = "'"..name.."' is readonly" } )
-    end
+    --if value and mapping[name] and mapping[name].readonly then
+      --table.insert( errors, { name = name, message = "'"..name.."' is readonly" } )
+    --end
       
-    local valid, message = validate.field( name, value, mapping[name] )
-    if not valid then
-      table.insert( errors, { name = name, message = message } )
-    end
+    --local valid, message = validate.field( name, value, mapping[name] )
+    --if not valid then
+      --table.insert( errors, { name = name, message = message } )
+    --end
 
-  end -- iterate through the values
+  --end -- iterate through the values
 
   return #errors == 0, errors, cleaned
 end

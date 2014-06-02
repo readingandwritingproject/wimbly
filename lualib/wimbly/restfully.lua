@@ -39,9 +39,9 @@ function RESTfully.validate( parameters_mapping )
   
   local success, errors, cleaned = validate.parameters( params, parameters_mapping )
   if not success then
-    ngx.status = ngx.HTTP_BAD_REQUEST
-    restfully.json( errors )
-    return ngx.exit( ngx.OK )
+    return restfully.respond( errors, ngx.HTTP_BAD_REQUEST )
+    --restfully.json( errors )
+    --return ngx.exit( ngx.OK )
   end
   
   return cleaned
