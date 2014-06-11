@@ -34,7 +34,7 @@ function wimbly.preprocess( path, replacements )
   
   local confs = wimbly.find( path, '%.conf%.source$' )
   
-  ngx.log( ngx.DEBUG, 'wimbly preprocessing...' )
+  if ngx then ngx.log( ngx.DEBUG, 'wimbly preprocessing...' ) end
   
   for _, source in ipairs( confs ) do
     -- load contents
