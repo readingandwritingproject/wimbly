@@ -7,7 +7,7 @@ require "luarocks.loader"
 
 -- uuid generator
 uuid = require "uuid"
-uuid.randomseed( ngx.now() * 10000 )
+uuid.randomseed( os.time() * 10000 )
 
 -- bcrypt password hasher
 bcrypt = require "bcrypt"
