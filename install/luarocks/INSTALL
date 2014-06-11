@@ -32,3 +32,5 @@ $ $WIMBLY_PATH/luajit/bin/luarocks install middleclass
 
 $ $WIMBLY_PATH/luajit/bin/luarocks install LuaFileSystem
 
+$ $WIMBLY_PATH/luajit/bin/luarocks install telescope
+
