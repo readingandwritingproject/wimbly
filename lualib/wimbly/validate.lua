@@ -58,9 +58,13 @@ function validate.field( name, value, mapping )
       -- remove spaces and underscores from type
       mapping.type = mapping.type:gsub( '[_ ]', '' ):lower()
       
-      if mapping.type == 'sqldate' or mapping.type == 'date' then
+      if mapping.type == 'sqldatetime' then
+        if not validate.type.sqldatetime( value ) then
+          return false, "'"..name.."' requires a valid SQL datetime, '"..value.."' is invalid"
+        end      
+      elseif mapping.type == 'sqldate' or mapping.type == 'date' then
         if not validate.type.sqldate( value ) then
-          return false, "'"..name.."' requires a valid date, '"..value.."' is invalid"
+          return false, "'"..name.."' requires a valid SQL date, '"..value.."' is invalid"
         end
       elseif mapping.type == 'integer' or mapping.type == 'integernumber' then
         if not validate.type.integernumber( value ) then
@@ -326,6 +330,13 @@ function validate.type.enumeration( submitted, values )
     return false, submitted
   end
   --return false, submitted
+end
+
+
+function validate.type.sqldatetime( str )
+-- TODO !!!
+-- plus unit tests!
+--  local datepart = str:match( '^(%d%d-%d%d-%d%d) ')  
 end
 
 

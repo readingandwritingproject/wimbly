@@ -48,3 +48,6 @@ wimbly = require "wimbly"
 wimbly.preprocess( "/var/www/application", {
   ["app"] = "/var/www/application"
 } )
+
+-- in case of use outside of ngx
+if not ngx then ngx = { ctx = {} } end
