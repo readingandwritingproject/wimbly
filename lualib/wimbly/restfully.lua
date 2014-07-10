@@ -55,7 +55,11 @@ function RESTfully._generate_human_readable_model_name( model_path )
   return model_name
 end
 
-
+-- !!!
+-- TODO, this should accept a 4th parameter of the fields that should be returned
+-- and it should rely on the object get call that allows more than one field to be specified,
+-- and those should be returned in a table
+-- !!!
 function RESTfully.GET.details( model_path, loader, load_parameter )
 
   local BusinessModel = require( model_path )
