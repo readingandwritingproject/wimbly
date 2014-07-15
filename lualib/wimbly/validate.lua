@@ -334,9 +334,21 @@ end
 
 
 function validate.type.sqldatetime( str )
--- TODO !!!
--- plus unit tests!
---  local datepart = str:match( '^(%d%d-%d%d-%d%d) ')  
+  
+  local parts = str:split( ' ' )
+  
+  local datepart = validate.type.sqldate( parts[1] )
+  
+  local h, m, s = parts[2]:match( '^([0-2][0-9]):([0-5][0-9]):([0-5][0-9])$' )
+  
+  h = tonumber( h )
+  
+  if ( h ~= nil and m ~= nil and s ~= nil ) then
+    return ( h <= 23 and datepart ), str
+  else
+    return false, str
+  end
+
 end
 
 
@@ -346,7 +358,7 @@ function validate.type.sqldate( str )
 
   if y ~= nil and m ~= nil and d ~= nil then
 
-    y, m, d = tonumber(y), tonumber(m), tonumber(d)
+    y, m, d = tonumber( y ), tonumber( m ), tonumber( d )
 
     -- Apr, Jun, Sep, Nov can have at most 30 days
     if m == 4 or m == 6 or m == 9 or m == 11 then
