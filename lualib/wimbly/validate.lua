@@ -168,8 +168,13 @@ function validate.convert( name, value, typ, options )
     
   local original = value
   if typ:match( '^integer' ) or typ:match( '^rational' ) or typ:match( 'number' ) then
-    value = tonumber( original )
-    if not original:match( tostring( value ) ) then success = false end
+    -- an empty string should convert to nil instead of zero
+    if value:trim() == '' then 
+      value = nil
+    else
+      value = tonumber( original )
+      if not original:match( tostring( value ) ) then success = false end
+    end
   elseif typ:match( '^boolean' ) then
     value = ( value:trim():lower() == 'true' )
     if not ( original:lower():trim() == 'true' or original:lower():trim() == 'false' ) then success = false end
