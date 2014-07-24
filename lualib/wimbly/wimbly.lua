@@ -44,6 +44,12 @@ function wimbly.preprocess( path, replacements )
     
     local conf = conf_source:interpolate( replacements ) --original, replacement )
 
+    if replacements['/'] then
+      local pattern = '(location)%s+([%^~=]-%s-)(^?)/'
+      local prefixed = '%1 %2%3'..replacements['/']
+      conf = conf:gsub( pattern, prefixed )
+    end
+    
     -- write changes
     local f = io.open( source:gsub( '.source$', '' ), 'w' )   
     
