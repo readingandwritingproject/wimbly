@@ -74,14 +74,7 @@ function RESTfully.GET.data( model_path, loader, load_parameter )
     business_object = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ) )
   end
 
-  --ngx.log( ngx.DEBUG, 'Hey' )
-  ngx.say( inspect( business_object ) )
-  ngx.exit( ngx.OK )
-  
-  
   if business_object ~= nil then
-    --ngx.log( ngx.DEBUG, inspect( business_object ) ) 
-    --ngx.exit( ngx.OK )
     results = business_object:data()
   else
     if not ngx.var.arg_callback then
@@ -244,10 +237,8 @@ function RESTfully.POST.create( model_path )
   ngx.req.read_body()
   local posted = ngx.req.get_post_args()
 
-  --local validate = require( 'lib/validate' )
-
-  local valid, errors, cleaned = validate.for_creation( posted, BusinessModel.detailMapping )
-  
+  local valid, errors, cleaned = validate.for_creation( posted, BusinessModel.fieldMapping )
+   
   local results = {}
   local model = nil
 
@@ -256,15 +247,13 @@ function RESTfully.POST.create( model_path )
     results.message = 'submitted '..model_name..' values are invalid'
     results.errors = errors
   else
-    local success, result = BusinessModel:insert( cleaned )
-    if not success then
+    model = BusinessModel:insert( cleaned )
+    if not model then
       ngx.status = ngx.HTTP_BAD_REQUEST
       results.message = model_name..' creation failed'
-      results.errors = result
     else
       results.message = model_name..' created successfully'
-      results.details = result:details()
-      model = result
+      results.details = model:data()
     end
   end
 
@@ -289,13 +278,8 @@ function RESTfully.POST.delete( model_path, loader, load_parameter )
   end
 
   if business_object then
-    local success, message = business_object:delete()
-    if success then
-      results.message = model_name..' deleted'
-    else
-      ngx.status = ngx.HTTP_BAD_REQUEST
-      results.message = message
-    end
+    business_object:delete()
+    results.message = model_name..' deleted'
   else
     ngx.status = ngx.HTTP_BAD_REQUEST
     results.message = model_name..' not found'
@@ -367,28 +351,22 @@ function RESTfully.POST.data( model_path, loader, load_parameter )
   if parameter ~= nil then
     business_object = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ) )
   end
-
+  
   if business_object then
     -- must read the request body up front
     ngx.req.read_body()
     local posted = ngx.req.get_post_args()
 
-    local valid, errors, cleaned = validate.for_update( posted, BusinessModel.detailMapping )
+    local valid, errors, cleaned = validate.for_update( posted, BusinessModel.fieldMapping )
 
     if not valid then
       ngx.status = ngx.HTTP_BAD_REQUEST
       results.message = 'submitted '..model_name..' values are invalid'
       results.errors = errors
     else
-      local success, errors = business_object:set( cleaned )
-      if not success then
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        results.message = model_name..' update failed'
-        results.errors = errors
-      else
-        results.message = model_name..' updated successfully'
-        results.details = business_object:data()
-      end
+      business_object:set( cleaned )
+      results.message = model_name..' updated successfully'
+      results.details = business_object:data()
     end
   else
     ngx.status = ngx.HTTP_BAD_REQUEST

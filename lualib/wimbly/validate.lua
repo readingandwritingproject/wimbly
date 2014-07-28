@@ -127,11 +127,9 @@ function validate.fields( fields, mapping, options )
   
   local errors = {}
   
-  --ngx.say( 'here' )
-
   -- check for existence and required
   for name, values in pairs( mapping ) do
-    if values.required and options.create and not fields[name] then
+    if values.required and options.create and fields[name] == nil then
       table.insert( errors, { name = name, message = "'"..name.."' is required" } )
     end    
   end
@@ -260,16 +258,6 @@ function validate.for_creation( posted, mapping, options )
   for i, err in ipairs( transform_errors ) do errors[i] = err end
   for i, err in ipairs( validation_errors ) do errors[#transform_errors + i] = err end
   
-  -- now validate the transformed submission
-  --for name, value in pairs( cleaned ) do
-      
-    --local valid, message = validate.field( name, value, mapping[name] )
-    --if not valid then
-      --table.insert( errors, { name = name, message = message } )
-    --end
-
-  --end -- iterate through the values
-
   return #errors == 0, errors, cleaned
 end
 
@@ -287,8 +275,6 @@ function validate.for_update( posted, mapping )
     return false, "unable to validate"
   end
 
-  --local success, errors, cleaned = validate.transform( posted, mapping, options )
-
   local transform_success, transform_errors, cleaned = validate.transform( posted, mapping, options )
   
   local validation_success, validation_errors = validate.fields( cleaned, mapping, options )
@@ -296,23 +282,6 @@ function validate.for_update( posted, mapping )
   local errors = {}
   for i, err in ipairs( transform_errors ) do errors[i] = err end
   for i, err in ipairs( validation_errors ) do errors[#transform_errors + i] = err end
-
-  
-  
-  -- now validate the transformed submission
-  --for name, value in pairs( cleaned ) do
-      
-    -- if readonly was specified
-    --if value and mapping[name] and mapping[name].readonly then
-      --table.insert( errors, { name = name, message = "'"..name.."' is readonly" } )
-    --end
-      
-    --local valid, message = validate.field( name, value, mapping[name] )
-    --if not valid then
-      --table.insert( errors, { name = name, message = message } )
-    --end
-
-  --end -- iterate through the values
 
   return #errors == 0, errors, cleaned
 end
@@ -334,7 +303,7 @@ function validate.type.enumeration( submitted, values )
   else
     return false, submitted
   end
-  --return false, submitted
+
 end
 
 
