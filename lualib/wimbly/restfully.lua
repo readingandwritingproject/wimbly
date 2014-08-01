@@ -34,7 +34,7 @@ function RESTfully.validate( parameters_mapping )
   
   local params = {}
   for name, mapping in pairs( parameters_mapping ) do
-    params[name] = mapping.source
+    params[name] = mapping.location
   end
   
   local success, errors, cleaned = validate.parameters( params, parameters_mapping )
