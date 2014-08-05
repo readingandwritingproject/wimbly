@@ -94,6 +94,7 @@ end
 
 -- delete below once conversion is complete
 -- details API call
+--[===[
 function RESTfully.GET.details( model_path, loader, load_parameter )
 
   local BusinessModel = require( model_path )
@@ -123,10 +124,11 @@ function RESTfully.GET.details( model_path, loader, load_parameter )
   RESTfully.json( results )
 
 end
-
+---]===]
 
 -- delete below once conversion is complete
 -- details API call
+--[==[
 function RESTfully.GET.fields( model_path )
 
   local BusinessModel = require( model_path )
@@ -179,7 +181,7 @@ function RESTfully.GET.fields( model_path )
   RESTfully.json( results )
 
 end
-
+--]==]
 
 
 function RESTfully.GET.metadata( model_path )
@@ -291,6 +293,7 @@ end
 
 -- delete below once conversion is complete
 -- details API call
+--[===[
 function RESTfully.POST.details( model_path, loader, load_parameter )
 
   local BusinessModel = require( model_path )
@@ -335,7 +338,7 @@ function RESTfully.POST.details( model_path, loader, load_parameter )
   RESTfully.json( results )
 
 end
-
+--]===]
 
 
 function RESTfully.POST.data( model_path, loader, load_parameter )
@@ -366,7 +369,9 @@ function RESTfully.POST.data( model_path, loader, load_parameter )
     else
       business_object:set( cleaned )
       results.message = model_name..' updated successfully'
-      results.details = business_object:data()
+      
+      -- reload from database to verify changes and force cache flush
+      results.data = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ), { reload = true } ):data() 
     end
   else
     ngx.status = ngx.HTTP_BAD_REQUEST
