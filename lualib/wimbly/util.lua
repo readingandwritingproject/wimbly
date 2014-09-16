@@ -223,3 +223,32 @@ function table.tocsv( t )
   
   return str:sub( 2 ) -- remove first comma
 end
+
+
+function table.indexby( t, key_name )
+  local result = {}
+  
+  for _, element in ipairs( t ) do
+    result[ element[ key_name ] ] = element
+  end
+
+  return result
+end
+
+
+function table.difference( from, take )  
+  local result_lookup = {}
+  for _, element in ipairs( from ) do result_lookup[element] = true end
+  for _, element in ipairs( take ) do result_lookup[element] = nil end
+  
+  local result = {}
+  local index = 1
+  for _, item in ipairs( from ) do
+    if result_lookup[item] then
+      result[index] = item
+      index = index + 1
+    end
+  end
+  
+  return result
+end
