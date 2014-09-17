@@ -252,3 +252,20 @@ function table.difference( from, take )
   
   return result
 end
+
+
+function table.intersection( a, b )
+  local lookup_b = {}
+  for _, element in ipairs( b ) do lookup_b[element] = true end
+
+  local result = {}
+  local index = 1
+  for _, item in ipairs( a ) do
+    if lookup_b[ item ] then
+      result[index] = item
+      index = index + 1
+    end
+  end
+  
+  return result
+end
