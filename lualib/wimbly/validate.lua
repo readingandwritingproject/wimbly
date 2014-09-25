@@ -35,11 +35,14 @@ function validate.field( name, value, mapping )
         end
       -- handle a string comma separated list if type ends with 'list'
       elseif mapping.type:ends( 'list' ) then
-        mapping.type = mapping.type:match( '(.+)list' )
+        mapping.type = mapping.type:match( '(.+)list' ):trim()
         if type( value ) == 'string' then
+          local results = {}
+          --ngx.say( 'here1' )
           for _, val in ipairs( value:split( ',' ) ) do
+            --ngx.say( val )
             local res, err = validate.field( name, val, mapping )
-            if not res then return res, err end
+            if not res then return res, err else end
           end
           mapping.type = nil
         end
