@@ -231,6 +231,11 @@ function validate.transform( posted, mapping, options )
         success, converted = validate.convert( name, value, mapping[name].type, options )
         if not success then table.insert( errors, { name = name, message = "value in '"..name.."' field could not be converted to type '"..mapping[name].type.."'" } ) end
       else
+      
+        -- check if part of an array
+        -- iterate
+        
+        
         converted = value
       end
     else

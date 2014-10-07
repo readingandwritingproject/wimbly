@@ -55,12 +55,16 @@ function DataTables.GET.collection( collection_path, parameters )
   }
   
   local params = restfully.validate( params )
+  
+  local columns = params.columns:split( ',' )
 
   local options = {
-    columns = params.columns:split( ',' ),
+    columns = columns,
     filter = params.filter,
     offset = params.offset,
     limit = params.limit,
+    order_by = columns[ params.order_index + 1],
+    order_direction = params.order_direction,
     conditions = parameters
   }
  
