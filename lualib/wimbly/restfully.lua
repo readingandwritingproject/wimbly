@@ -203,10 +203,7 @@ end
 
 function RESTfully._posted_name_to_value( name, value, posted )
   
-  -- direct assignments and arrays can be assigned directly
-  if name:match( '%[' ) and type( value ) == 'string' then
-    
-    ngx.log( ngx.DEBUG, 'IN]  name: ', name, ', value: ', value ) 
+  if name:match( '%[' ) then
     
     -- if needed wrap first element in square parentheses for uniformity
     -- nuts[0][items][0][it] -> [nuts][0][items][0][it]
@@ -215,28 +212,30 @@ function RESTfully._posted_name_to_value( name, value, posted )
       part, remainder = name:match( '^(.-)(%[.*)$' )
       name = '['..part..']'..remainder
     end
-
-    ngx.log( ngx.DEBUG, 'NORMAL]  name: ', name, ', value: ', value ) 
-  
-    local var_sofar = posted
-    local remaining = name
-    local index = ''
-    --local tab
+   
+    -- remove the array signifier [] since ngx.req.get_post_args() handles that
+    -- [nuts][0][items][0][it][] -> [nuts][0][items][0][it]
+    if name:match( '%[%]$' ) then
+      name = name:sub( 1, -3 )
+    end
     
-    while remaining and remaining:match( '%[' ) do
-      index, remaining = remaining:match( '^%[(.-)%](.*)$' )
-      ngx.log( ngx.DEBUG, 'LOOP]  index: ', index, ', remaining: ', remaining ) 
-      
+    local var_sofar = posted
+    local index = ''
+   
+    local indices = {}
+    for index in name:gmatch( '%[(.-)%]' ) do 
+      table.insert( indices, index ) 
+    end
+    
+    for count, index in ipairs( indices ) do
+    
       -- handle array indexes
       if index:match( '^%d' ) then
         -- switch to array lookups and account for lua counting from 1
         index = tonumber( index ) + 1
-      elseif index == '' then
-        index = #var_sofar + 1        
-        ngx.log( ngx.DEBUG, 'EMPTY INDEX]  index: ', index ) 
       end
-      
-      if var_sofar[index] == nil then
+    
+      if var_sofar[index] == nil and count < #indices then
         if type( index ) == 'number' then
           local inner = {}
           table.insert( var_sofar, inner )
@@ -246,12 +245,13 @@ function RESTfully._posted_name_to_value( name, value, posted )
           var_sofar = var_sofar[index]
         end
       else
-        var_sofar = var_sofar[index]
+        if count < #indices then
+          var_sofar = var_sofar[index]
+        else
+          var_sofar[index] = value
+        end
       end
-  -- nuts[0]['items'][0]['it'] = 'item1a'
     end
-    
-    var_sofar[index] = value
     
   else
     posted[name] = value
@@ -260,46 +260,15 @@ end
 
 
 function RESTfully.post_to_table( posted )
-  
-  --local input = table.copy( posted )
+
   local results = {}
   local input = posted 
-  local input = { 
-    ['ubga[]'] = 'abc',
-    ['ubga[]'] = 'def'
-    --    ['nuts[0][items][0][it]'] = 'item1a' 
-  }
   
   for name, value in pairs( input ) do
     RESTfully._posted_name_to_value( name, value, results ) 
   end
   
   return results
-  --[[
-  nuts[0][items][0][it] item1a
-  nuts[0][items][1][it] item1b
-  nuts[0][name]   name1
-  nuts[1][items][0][it] item2a
-  nuts[1][items][1][it] item2b
-  nuts[1][name]   name2
-
-  --]]
-  
-  --[=[
-  local result = {}
-  for key, value in pairs( posted ) do
-    if key:match( '[' ) then
-      local name
-      _, name, remainder = key:match( '^(.*)([.*)' )
-      if result[name] == nil then result[name] = {} end
-      
-      
-      
-    else
-      --key
-    end
-  end
-  --]=]
   
 end
 
@@ -309,13 +278,9 @@ function RESTfully.POST.data2( model_path, loader, load_parameter )
   ngx.req.read_body()
   local posted = ngx.req.get_post_args()
 
-  --local results = RESTfully.post_to_table( posted )
-  local results = posted
+  local results = RESTfully.post_to_table( posted )
   
   RESTfully.json( results )
-
-  
-  
   
 end
 
