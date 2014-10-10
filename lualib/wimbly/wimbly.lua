@@ -140,7 +140,7 @@ function wimbly.wrap( content, file, location, linenumber, options )
     end
     
     local content_lines = content:split( '\n' )
-    
+        
     local error_lines = {}
     local start = 1
     
@@ -159,8 +159,7 @@ function wimbly.wrap( content, file, location, linenumber, options )
     
     if options.override_message then error_message = options.override_message end
     
-    ngx.say( output:interpolate( { errortype = errortype, message = error_message, filename = file, location = location, linenumber = linenumber + offset, line = error_line, lines = table.concat( error_lines, '\n' ) } ) )   
-    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+    ngx.say( output:interpolate( { errortype = errortype, message = error_message, filename = file, location = location, linenumber = linenumber + offset, line = error_line, lines = table.concat( error_lines, '\n' ) } ) )
     ngx.exit( ngx.OK )
   end
 end
@@ -179,6 +178,8 @@ function wimbly.wrap_load( filename, file, location, linenumber )
   local content = content_file:read( '*all' )
   content_file:close()
   
+  --ngx.say( '++++'..content..'++++' )
+  
   return wimbly.wrap( content, file..'\n   '..filename, location, 0 )
 end
 
@@ -193,7 +194,7 @@ function wimbly._debug_location_conf( file, location, conf, linenumberoffset )
   
   for i = 1, #conf_lines do
     if conf_lines[i]:match( "_by_lua%s*'" ) then table.insert( _by_lua_offsets, linenumberoffset + i ) end
-    if conf_lines[i]:match( "_by_lua_file%s*'" ) then table.insert( _by_lua_file_offsets, linenumberoffset + i ) end    
+    if conf_lines[i]:match( "_by_lua_file%s*'" ) then table.insert( _by_lua_file_offsets, linenumberoffset + i - 1 ) end    
   end
   
   --ngx.log( ngx.DEBUG, inspect( _by_lua_offsets ) )

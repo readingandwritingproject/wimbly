@@ -16,25 +16,50 @@ function string.trim(String)
 end
 
 -- split with pattern
+---[==[
 function string.split(str, pat )
   pat = pat or " "
   local t = {} -- NOTE: use {n = 0} in Lua-5.0
   local fpat = "(.-)" .. pat
   local last_end = 1
-  local s, e, cap = str:find(fpat, 1)
+  local s, e, cap = str:find( fpat, 1 )
   while s do
-    if s ~= 1 or cap ~= "" then
-      table.insert(t,cap)
-    end
-    last_end = e+1
-    s, e, cap = str:find(fpat, last_end)
+    table.insert( t,cap )
+    last_end = e + 1
+    s, e, cap = str:find( fpat, last_end )
   end
-  if last_end <= #str then
-    cap = str:sub(last_end)
-    table.insert(t, cap)
-  end
+    cap = str:sub( last_end )
+    table.insert( t, cap )
   return t
 end
+--]==]
+
+
+--[=====[
+function string.split( str, delim )
+  local res = { }
+  local pattern = string.format("([^%s]+)%s()", delim, delim)
+  while (true) do
+    line, pos = str:match(pattern, pos)
+    if line == nil then break end
+    table.insert(res, line)
+  end
+  return res
+end
+--]=====]
+
+
+--[===[
+function string.split( str, pat )
+  pat = pat or '%s+'
+  local st, g = 1, str:gmatch("()("..pat..")")
+  local function getter(segs, seps, sep, cap1, ...)
+    st = sep and seps + #sep
+    return str:sub(segs, (seps or 0) - 1), cap1 or sep, ...
+  end
+  return function() if st then return getter(st, g()) end end
+end
+--]===]
 
 -- interpolatation by name substitution
 function string.interpolate( s, tab )
