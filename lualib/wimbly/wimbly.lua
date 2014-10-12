@@ -62,6 +62,10 @@ function wimbly.preprocess( path, replacements, options )
 end
 
 
+function wimbly.runtime_error()
+  local runtime = "Hello" + 5
+end
+
 
 wimbly.error_plain = [[
 ---
@@ -75,10 +79,11 @@ wimbly.error_plain = [[
                  %(errortype)s error |___/
 
  %(location)s
- %(filename)s:%(linenumber)s
-
+ 
  "%(message)s"
 
+ %(filename)s 
+ 
 %(lines)s
 
 ---
@@ -95,6 +100,53 @@ wimbly.error_html = string.interpolate( [[
 ]], { errortext = wimbly.error_plain } )
 
 
+function wimbly._source_extract( fileorcontent, linenumber, options )
+  local options = options or {}
+  options.indent = ( options.indent or 0 )
+  options.surround = ( options.surround or 2 )
+  options.padding = ( options.padding or 6 )
+  options.offset = ( options.offset or 0 )
+
+  local content = ''
+  
+  -- if fileorcontent start with a slash then treat as filename
+  if fileorcontent:starts( '/' ) then
+    local content_file = io.open( fileorcontent, 'r' )
+    if content_file then
+      content = content_file:read( '*all' )
+      content_file:close()
+    else
+      content = ( fileorcontent..' not found\n' ):rep( linenumber + options.surround )
+    end
+  else
+    content = fileorcontent
+  end
+  
+  local content_lines = content:split( '\n' )
+        
+  local relevant_lines = {}
+  local start = 1
+
+  if linenumber > options.surround + 1 then start = linenumber - options.surround end
+    
+  for i = start, linenumber + options.surround do
+    local line = ( ' ' ):rep( options.indent )
+    local snumber = tostring( i + options.offset )
+    if i ~= linenumber then --and indicator ~= ' ' then
+      line = line..snumber:padleft( ' ', options.padding )
+    else
+      line = line..'> '..snumber:padleft( ' ', options.padding - 2 )
+    end
+    line = line..'| '..( content_lines[i] or '' )
+    table.insert( relevant_lines, line )
+  end 
+  
+  --ngx.say( '++++\n', table.concat( error_lines, '\n' ), '\n+++' )
+  
+  return table.concat( relevant_lines, '\n' )
+end
+
+
 function wimbly.wrap( content, file, location, linenumber, options )
   local options = ( options or { hide_lines = false, override_message = nil } )
   
@@ -102,22 +154,37 @@ function wimbly.wrap( content, file, location, linenumber, options )
   result.filename = file
   result.location = location
   result.linenumber = linenumber
-  result.traceback = debug.traceback()
+  result.callstack = {}
   
   local errortype = 'runtime'
   
   local func, message = loadstring( content )
   
+  local callback = function( err )
+    result.traceback = debug.traceback()
+  
+    local lfs = require 'lfs'
+    local cwd = lfs.currentdir()
+
+    for func, file, line in result.traceback:gmatch( "in function '(.-)'%s*(.-):(%d*):" ) do
+      if not file:starts( '/' ) then file = cwd..'/'..file end
+      table.insert( result.callstack, { func = func, file = file, line = tonumber( line ) } )
+    end
+    result.message = err
+  end
+  
   local res
   if func then
-    res, message = pcall( func )
+    res = xpcall( func, callback )
+    message = result.message
+    --ngx.say( '======', message, '======' )
   else
     res, message = false, message
     errortype = 'compile'
   end
-    
-  --local res, message = pcall( func )
+
   if not res then
+    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
     
     local output = wimbly.error_plain
     
@@ -130,36 +197,34 @@ function wimbly.wrap( content, file, location, linenumber, options )
     end
     
     --ngx.say( inspect( result ) )
-    
+
     local offset, error_message = message:match( '%]:(%d+): (.*)$' )
     if offset then
       offset = tonumber( offset )
     else
       offset = 0
       error_message = message
-    end
+    end    
     
-    local content_lines = content:split( '\n' )
-        
-    local error_lines = {}
-    local start = 1
+    local extract = ''
     
-    if offset > 3 then start = offset - 2 end
-        
-    for i = start, offset + 2 do
-      if i ~= offset then
-        table.insert( error_lines, ( tostring( linenumber + i ) ):padleft( ' ', 6 )..'| '..( content_lines[i] or '' ) )
-      else
-        table.insert( error_lines, ' > '..( tostring( linenumber + i ) ):padleft( ' ', 3 )..'| '..( content_lines[i] or '' ) )      
+    if #result.callstack > 3 then
+      -- add line number from level 2
+      file = file..':'..result.callstack[#result.callstack - 2].line
+      for i = #result.callstack - 3, 1, -1 do
+        file = file..'\n'..( ' ' ):rep( ( #result.callstack - i ) * 2 -1 )..result.callstack[i].file..':'..result.callstack[i].line
       end
+      error_message = error_message:match( ':%d+:%s(.*)$' )
+      extract = wimbly._source_extract( result.callstack[1].file, result.callstack[1].line, { indent = 1 } )
+    else
+      file = file..':'..offset + linenumber
+      extract = wimbly._source_extract( content, offset, { offset = linenumber, indent = 1 } ) 
     end
     
-    local error_line = content_lines[tonumber(offset)]
-    if options.hide_lines then error_lines = { '' } end
-    
+    if options.hide_extract then extract = '' end    
     if options.override_message then error_message = options.override_message end
-    
-    ngx.say( output:interpolate( { errortype = errortype, message = error_message, filename = file, location = location, linenumber = linenumber + offset, line = error_line, lines = table.concat( error_lines, '\n' ) } ) )
+        
+    ngx.say( output:interpolate( { errortype = errortype, message = error_message, calls = calls, filename = file, location = location, lines = extract } ) )
     ngx.exit( ngx.OK )
   end
 end
@@ -172,7 +237,7 @@ function wimbly.wrap_load( filename, file, location, linenumber )
     return wimbly.wrap( string.interpolate( [[
       local content_file = io.open( '%(filename)s', 'r' )
       local content = content_file:read( '*all' )
-      ]], { filename = filename } ), file, location, linenumber, { hide_lines = true, override_message = filename..' not found' } )
+      ]], { filename = filename } ), file, location, linenumber, { hide_extract = true, override_message = filename..' not found' } )
   end
   
   local content = content_file:read( '*all' )
@@ -180,7 +245,7 @@ function wimbly.wrap_load( filename, file, location, linenumber )
   
   --ngx.say( '++++'..content..'++++' )
   
-  return wimbly.wrap( content, file..'\n   '..filename, location, 0 )
+  return wimbly.wrap( content, file..':'..linenumber..'\n   '..filename, location, 0 )
 end
 
 
@@ -228,7 +293,7 @@ end
 
 function wimbly.debug( path )
   local options = ( options or {} )
-  
+    
   local lfs = require "lfs"
   
   local confs = wimbly.find( path, 'urls%.conf$' )
@@ -244,13 +309,10 @@ function wimbly.debug( path )
     local conf_lines = conf:split( '\n' )
     local out_lines = {}
 
-    --local location_pattern = "location%s*.%s*(.-)%s*'"
-    
     if true then
     --if source:match( 'file/urls.conf' ) then 
       --ngx.log( ngx.DEBUG, source )
     
-      --local locations = {}
       local linenumber = 1
       while linenumber < #conf_lines do
         local line = conf_lines[linenumber]
@@ -294,7 +356,7 @@ function wimbly.debug( path )
       
       conf = table.concat( out_lines, '\n' )
       
-    end --only work on file/urls.conf
+    end -- allows only work on file/urls.conf for debugging
     
     --ngx.log( ngx.DEBUG, table.concat( out_lines, '\n' ) )
     
