@@ -1,0 +1,14 @@
+--- sql.h       2014-10-22 16:59:57.000000000 +0000
++++ sql_patched.h       2014-10-22 17:28:17.710470999 +0000
+@@ -8,6 +8,11 @@
+ #define __SQL_H
+ 
+ 
++#ifndef VOID
++#define VOID void
++#endif
++
++
+ /****************************
+  * default to 3.51 declare something else before here and you get a whole new ball of wax
+  ***************************/
