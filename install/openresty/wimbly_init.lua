@@ -48,24 +48,18 @@ wimbly = require "wimbly"
 --ngx.shared.wimbly:set( )
 
 -- preprocess connect application conf 
-wimbly.preprocess( "/var/www/application/connect", {
-  ["app"] = "/var/www/application/connect"
-} )
-
--- preprocess connect application conf 
-wimbly.preprocess( "/var/www/application/staging", {
-  ["app"] = "/var/www/application/staging",
-  ["/"] = '/_'
+wimbly.preprocess( "/var/www/connect", {
+  ["app"] = "/var/www/connect"
 } )
 
 -- load the correct runtime files
-_require = require
-require = function( path )
-  if path:match( 'models' ) or path:match( 'lib' ) then
-    path = ngx.var.server_header..'/'..path
-  end
-  return _require( path )
-end
+--_require = require
+--require = function( path )
+--  if path:match( 'models' ) or path:match( 'lib' ) then
+    --path = ngx.var.server_header..'/'..path
+  --end
+  --return _require( path )
+--end
 
 -- for browser-based error reporting
 _error = error
