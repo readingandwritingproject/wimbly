@@ -44,24 +44,15 @@ restfully = require "restfully"
 
 wimbly = require "wimbly"
 
--- wimbly config
---ngx.shared.wimbly:set( )
-
 -- preprocess connect application conf 
 wimbly.preprocess( "/var/www/connect", {
   ["app"] = "/var/www/connect"
 } )
 
--- load the correct runtime files
---_require = require
---require = function( path )
---  if path:match( 'models' ) or path:match( 'lib' ) then
-    --path = ngx.var.server_header..'/'..path
-  --end
-  --return _require( path )
---end
+-- for browser-based error traces
+--wimbly.debug( "/var/www/connect" )
 
--- for browser-based error reporting
+-- to ovverride error method with JSON response
 _error = error
 error = function( message, data )
   restfully.respond( { error = message, previous_sql = ngx.ctx.sql, data = data }, ngx.HTTP_INTERNAL_SERVER_ERROR )
