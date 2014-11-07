@@ -20,7 +20,10 @@ date = require "date"
 pdf = require "libpdf"
 
 -- wrapping some of libcsv in an interface like SLAXML
-slacsv = require "libcsv"
+--slacsv = require "libcsv"
+
+-- native CSV Lua library
+csv = require "csv"
 
 -- for data structure inspection during development
 inspect = require "inspect"
@@ -44,7 +47,7 @@ restfully = require "restfully"
 
 wimbly = require "wimbly"
 
--- preprocess connect application conf 
+-- preprocess connect application conf
 wimbly.preprocess( "/var/www/connect", {
   ["app"] = "/var/www/connect"
 } )
