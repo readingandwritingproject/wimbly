@@ -2,6 +2,8 @@ local validate = {
   type = {}
 }
 
+
+
 --[[
 see Institute.propertyMapping for an example of a valid field to property mapping
 --]]
@@ -210,11 +212,14 @@ function validate.transform( posted, mapping, options )
 
   local converted, success
 
+  --ngx.say( 'transform', inspect( cleaned ) )
+
   -- if valid conversions convert posted string fields to the intended data types in 'cleaned'
   for name, value in pairs( cleaned ) do
     if type( name ) ~= 'string' then error( "table 'posted' must be composed only of string keys" ) end
 
-    if type( value ) == 'table' then
+    if type( value ) == 'table' and mapping[name].type then
+
       converted = {}
 
       for index, val in ipairs( value ) do
@@ -229,6 +234,9 @@ function validate.transform( posted, mapping, options )
           table.insert( errors, { name = name, message = "'"..name.."' must be a table of strings" } )
         end
       end
+    elseif type( value ) == 'table' then
+      -- XXX just make it JSON until recursive validation is added
+      converted = cjson.encode( value )
 
     elseif type( value ) == 'string' then
       if mapping[name] and mapping[name].type then
@@ -263,6 +271,9 @@ function validate.for_creation( posted, mapping, options )
 
   local transform_success, transform_errors, cleaned = validate.transform( posted, mapping, options )
   -- don't show create (required) errors twice
+
+  --ngx.say( 'for_creation', inspect( cleaned ) )
+
   options.create = false
   local validation_success, validation_errors = validate.fields( cleaned, mapping, options )
 
@@ -387,18 +398,26 @@ function validate.type.integernumber( num )
   local cleaned = tostring( num )
   return ( type( num ) == 'number' and cleaned:match( '^-?%d+$' ) ), cleaned
 end
+validate.type.integer = validate.type.integernumber
+validate.type['integer number'] = validate.type.integernumber
 
 -- check for valid rational number
-function validate.type.wholenumber( num )
+function validate.type.rationalnumber( num )
   local cleaned = tostring( num )
   return ( type( num ) == 'number' and cleaned:match( '^-?%d+%.?%d-$' ) ), cleaned
 end
+validate.type.rational = validate.type.rationalnumber
+validate.type.float = validate.type.rationalnumber
+validate.type.number = validate.type.rationalnumber
+validate.type['rational number'] = validate.type.rationalnumber
 
 -- check for valid whole number
 function validate.type.wholenumber( num )
   local cleaned = tostring( num )
   return ( type( num ) == 'number' and cleaned:match( '^%d+$' ) ), cleaned
 end
+validate.type.whole = validate.type.wholenumber
+validate.type['whole number'] = validate.type.wholenumber
 
 function validate.type.boolean( bool )
   local cleaned = tostring( bool )
@@ -415,5 +434,6 @@ function validate.type.emailaddress( str )
   local cleaned = tostring( str )
   return ( cleaned:match( "[A-Za-z0-9%.%%%+%-]+@[A-Za-z0-9%.%%%+%-]+%.%w%w%w?%w?" ) ), cleaned
 end
+validate.type.email = validate.type.emailaddress
 
 return validate
