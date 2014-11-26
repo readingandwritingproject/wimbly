@@ -45,6 +45,10 @@ validate = require "validate"
 -- REST API helper
 restfully = require "restfully"
 
+-- DataTables Javascript library interface  
+datatables = require "datatables"
+
+
 wimbly = require "wimbly"
 
 -- preprocess connect application conf
