@@ -195,6 +195,17 @@ function validate.convert( name, value, typ, options )
 end
 
 
+function validate.transform2( posted, mapping, options )
+  local options = options or {}
+
+  local errors = {}
+  local cleaned = table.copy( posted )
+
+  return #errors == 0, errors, cleaned
+end
+
+
+
 function validate.transform( posted, mapping, options )
   local options = options or {}
 
@@ -285,8 +296,158 @@ function validate.for_creation( posted, mapping, options )
 end
 
 
+function validate.mapping( values, mapping, options, name_so_far )
+  local options = options or { ignore_required = false, ignore_readonly = false, report_unknown = false, zero_based_indexing = false }
+  local name_so_far = ( name_so_far or '' )
+  local errors = {}
+
+  --ngx.say( '<hr />called with values: ', inspect( values ), '<br />', 'mapping: ', inspect( mapping ), '<br />', 'name_so_far: ', name_so_far, '<br />' )
+
+  -- validate a simple value with a simple type
+  local _validate = function( val, type, name )
+    if validate.type[ type ] then
+      local res, message = validate.type[ type ]( val )
+      return message
+    else
+      error( "unknown type '"..( type or 'nil' ).."' at '"..name.."'" )
+    end
+  end
+
+  -- mappings must be key-value tables not arrays
+  if not type( mapping ) == 'table' or table.isarray( mapping ) then
+    if name_so_far ~= '' then name_so_far = ' at '..name_so_far end
+    error( "invalid mapping for validation"..name_so_far )
+  end
+
+  -- determine if a single mapping or a table of mappings
+  -- (if every value is a table then is a table of mappings otherwise a single mapping)
+  local table_of_mappings = true
+  for key, map in pairs( mapping ) do
+    --ngx.say( '--- key: ', key, '<br />' )
+    if type( map ) ~= 'table' or table.isarray( map ) then table_of_mappings = false end
+  end
+
+  -- check validity of table of mappings and recursively call validate.mapping with single mapping and corresponding value
+  if table_of_mappings then
+
+    if type( values ) == 'table' and table.isarray( values ) and mapping.type and not table.isarray( mapping.type ) then
+      --ngx.say( 'values: ', inspect( values ), ', mapping: ', inspect( mapping ), ', isarray mapping: ', table.isarray( mapping ) )
+      if name_so_far then name_so_far = ' at '..name_so_far end
+      error( 'mapping table provided for validation of non-table data'..name_so_far )
+    end
+
+    -- check for unknown values if report_unknown
+    if options.report_unknown then
+      for name, _ in pairs( values ) do
+        if mapping[name] == nil then
+          local nsf ; if name_so_far ~= '' then nsf = name_so_far..'.'..name else nsf = name end
+          table.insert( errors, { name = nsf, message = 'field not found in mapping and can not be validated' } )
+        end
+      end
+    end
+
+    -- iterate through mappings
+    for name, map in pairs( mapping ) do
+      local nsf ; if name_so_far ~= '' then nsf = name_so_far..'.'..name else nsf = name end
+
+      local errs
+      if type ( map.type ) == 'table' and not table.isarray( map.type ) then
+        _, errs = validate.mapping( values[name], map.type, options, nsf )
+      else
+        _, errs = validate.mapping( values[name], map, options, nsf )
+      end
+      for _, err in ipairs( errs ) do table.insert( errors, err ) end
+
+    end
+
+  -- handle a single mapping
+  else
+
+    if values ~= nil then
+      if mapping.readonly and not options.ignore_readonly then
+        table.insert( errors, { name = name_so_far, message = "value supplied for field marked readonly" } )
+
+      -- actually validate the data
+      else
+        local to_type = mapping.type
+
+        -- if potentially an array type
+        if type( to_type ) == 'table' then
+
+          if table.isarray( to_type ) and #to_type == 1 and type( to_type[1] ) == 'string' then
+            if type( values ) == 'table' and table.isarray( values ) then
+              local mod_mapping = table.copy( mapping )
+              mod_mapping.type = to_type[1]
+              for index, val in ipairs( values ) do
+                if options.zero_based_indexing then
+                  nsf = name_so_far..'['..(index - 1)..']'
+                else
+                  nsf = name_so_far..'['..index..']'
+                end
+                local _, errs = validate.mapping( values[index], mod_mapping, options, nsf )
+                for _, err in ipairs( errs ) do table.insert( errors, err ) end
+              end
+            else
+              if name_so_far ~= '' then name_so_far = ' at '..name_so_far end
+              error( "array type provided for validation of non-array values"..name_so_far )
+            end
+          else
+            if name_so_far ~= '' then name_so_far = ' at '..name_so_far end
+            error( "invalid mapping for validation"..name_so_far )
+          end
+
+        -- if a simple type
+        else
+
+          if values then
+            local error_message = _validate( values, to_type, name_so_far )
+            if error_message then table.insert( errors, { name = name_so_far, message = error_message } ) end
+          end
+        end
+      end
+    -- value is nil
+    elseif mapping.required and not options.ignore_required then
+      table.insert( errors, { name = name_so_far, message = 'no value supplied for field marked required' } )
+    end
+
+  end
+
+  return #errors == 0, errors
+end
+
+
+
+function validate.for_creation2( posted, mapping, options )
+  local options = options or { create = true }
+
+  if ( mapping == nil ) then
+    return false, "unable to validate"
+  end
+
+  local transform_success, transform_errors, cleaned = validate.transform2( posted, mapping, options )
+  -- don't show create (required) errors twice
+
+  --ngx.say( 'for_creation', inspect( cleaned ) )
+
+  options.create = false
+  local validation_success, validation_errors = validate.fields( cleaned, mapping, options )
+
+  local errors = {}
+  for i, err in ipairs( transform_errors ) do errors[i] = err end
+  for i, err in ipairs( validation_errors ) do errors[#transform_errors + i] = err end
+
+  return #errors == 0, errors, cleaned
+end
+
+
+
 function validate.parameters( params, mapping )
   return validate.for_creation( params, mapping, { create = true, unescape = true } )
+end
+
+
+function validate.parameters2( params, mapping )
+  return validate.mapping( params, mapping, { ignore_required = false, ignore_readonly = true } ) --create = true, unescape = true } )
 end
 
 
@@ -310,6 +471,27 @@ function validate.for_update( posted, mapping )
 end
 
 
+function validate.type.string( str )
+  local valid = type( str ) == 'string'
+  if not valid then
+    return false, tostring( str )..' is not a string'
+  else
+    return true
+  end
+end
+
+
+function validate.type.number( num )
+  local valid = type( num ) == 'number'
+  if not valid then
+    return false, "'"..tostring( num ).."' is not a number"
+  else
+    return true
+  end
+end
+
+
+-- not sure how to re-implement these...
 function validate.type.enumeration( submitted, values )
   local vals = {}
 
@@ -331,8 +513,9 @@ end
 
 
 function validate.type.sqldatetime( str )
-
+  local str = tostring( str )
   local parts = str:split( ' ' )
+  local valid = true
 
   local datepart = validate.type.sqldate( parts[1] )
 
@@ -341,9 +524,12 @@ function validate.type.sqldatetime( str )
   h = tonumber( h )
 
   if ( h ~= nil and m ~= nil and s ~= nil ) then
-    return ( h <= 23 and datepart ), str
+    valid = ( h <= 23 and datepart )
+  end
+  if valid then
+    return true
   else
-    return false, str
+    return false, "'"..str.."' is not a valid sqldatetime"
   end
 
 end
@@ -351,7 +537,9 @@ end
 
 -- check whether string could be a sqldate
 function validate.type.sqldate( str )
+  local str = tostring( str )
   local y, m, d = str:match( '^([1-2][9,0]%d%d)%-([0-1][0-9])%-([0-3][0-9])$' )
+  local valid = true
 
   if y ~= nil and m ~= nil and d ~= nil then
 
@@ -359,26 +547,33 @@ function validate.type.sqldate( str )
 
     -- Apr, Jun, Sep, Nov can have at most 30 days
     if m == 4 or m == 6 or m == 9 or m == 11 then
-      return d <= 30, str
+      valid = d <= 30
     -- Feb
     elseif m == 2 then
       -- if leap year, days can be at most 29
       if y%400 == 0 or ( y%100 ~= 0 and y%4 == 0 ) then
-        return d <= 29, str
+        valid = d <= 29
       -- else 28 days is the max
       else
-        return d <= 28, str
+        valid = d <= 28
       end
     -- all other months can have at most 31 days
     else
-      return d <= 31, str
+      valid = d <= 31
     end
   else
-    return false, str
+    valid = false
+  end
+
+  if valid then
+    return true
+  else
+    return false, "'"..str.."' is not a valid sqldate"
   end
 end
 
 -- check comma separated list of dates
+--[[
 function validate.type.sqldates( str )
   local dates = str:split( ',' )
   if #dates > 0 then
@@ -392,48 +587,71 @@ function validate.type.sqldates( str )
     return false, str
   end
 end
+--]]
 
 -- check for a valid integer
-function validate.type.integernumber( num )
-  local cleaned = tostring( num )
-  return ( type( num ) == 'number' and cleaned:match( '^-?%d+$' ) ), cleaned
+function validate.type.integer( num )
+  local str = tostring( num )
+  local valid = type( num ) == 'number' and str:match( '^-?%d+$' )
+  if not valid then
+    return false, "'"..str.."' is not an integer"
+  else
+    return true
+  end
 end
-validate.type.integer = validate.type.integernumber
-validate.type['integer number'] = validate.type.integernumber
+validate.type.integernumber = validate.type.integer
+validate.type['integer number'] = validate.type.integer
 
 -- check for valid rational number
-function validate.type.rationalnumber( num )
-  local cleaned = tostring( num )
-  return ( type( num ) == 'number' and cleaned:match( '^-?%d+%.?%d-$' ) ), cleaned
+function validate.type.rational( num )
+  local str = tostring( num )
+  local valid = type( num ) == 'number' and str:match( '^-?%d+%.?%d-$' )
+  if not valid then
+    return false, "'"..str.."' is not a rational number"
+  else
+    return true
+  end
 end
-validate.type.rational = validate.type.rationalnumber
-validate.type.float = validate.type.rationalnumber
-validate.type.number = validate.type.rationalnumber
-validate.type['rational number'] = validate.type.rationalnumber
+validate.type.rationalnumber = validate.type.rational
+validate.type['rational number'] = validate.type.rational
 
 -- check for valid whole number
 function validate.type.wholenumber( num )
-  local cleaned = tostring( num )
-  return ( type( num ) == 'number' and cleaned:match( '^%d+$' ) ), cleaned
+  local str = tostring( num )
+  local valid = type( num ) == 'number' and str:match( '^%d+$' )
+  if not valid then
+    return false, "'"..str.."' is not a whole number"
+  else
+    return true
+  end
 end
 validate.type.whole = validate.type.wholenumber
 validate.type['whole number'] = validate.type.wholenumber
 
 function validate.type.boolean( bool )
-  local cleaned = tostring( bool )
-  return type( bool ) == 'boolean', cleaned
+  local str = tostring( bool )
+  local valid = type( bool ) == 'boolean'
+  if not valid then
+    return false, "'"..str.."' is not a boolean"
+  else
+    return true
+  end
 end
+validate.type.bool = validate.type.boolean
 
-function validate.type.yesno( str )
-  local cleaned = tostring( str )
-  cleaned = str:lower():trim()
-  return ( cleaned == 'yes' or cleaned == 'no' ), cleaned
-end
+--function validate.type.yesno( str )
+  --local cleaned = tostring( str )
+  --cleaned = str:lower():trim()
+  --return ( cleaned == 'yes' or cleaned == 'no' ), cleaned
+--end
 
-function validate.type.emailaddress( str )
-  local cleaned = tostring( str )
-  return ( cleaned:match( "[A-Za-z0-9%.%%%+%-]+@[A-Za-z0-9%.%%%+%-]+%.%w%w%w?%w?" ) ), cleaned
+function validate.type.email( str )
+  local str = tostring( str )
+  local valid = str:match( "[A-Za-z0-9%.%%%+%-]+@[A-Za-z0-9%.%%%+%-]+%.%w%w%w?%w?" )
+  local message
+  if not valid then message = "'"..str.."' is not a valid email address" end
+  return valid, message
 end
-validate.type.email = validate.type.emailaddress
+validate.type.emailaddress = validate.type.email
 
 return validate

@@ -53,6 +53,28 @@ function RESTfully.validate( parameters_mapping )
 end
 
 
+function RESTfully.validate2( parameters_mapping )
+
+  --ngx.say( 'in validate2' )
+  local params = {}
+  for name, mapping in pairs( parameters_mapping ) do
+    params[name] = mapping.location
+  end
+
+  local success, errors = validate.parameters2( params, parameters_mapping )
+
+  --local success, errors, cleaned = validate.parameters2( params, parameters_mapping )
+  if not success then
+    return restfully.respond( errors, ngx.HTTP_BAD_REQUEST )
+    --restfully.json( errors )
+    --return ngx.exit( ngx.OK )
+  end
+
+  return params
+
+end
+
+
 function RESTfully._generate_human_readable_model_name( model_path )
   local parts = model_path:split( '/' )
   local model_name = parts[#parts]:gsub( '_', ' ' )
@@ -243,38 +265,81 @@ function RESTfully.POST.delete( model_path, loader, load_parameter )
 end
 
 
--- convert strings (or an array of strings) to numbers or booleans (or an array of numbers or booleans)
+-- convert a string (or some table structure of strings) to the passed type
 function RESTfully._string_type_convert( value, to_type )
   local to_type = ( to_type or '' )
 
   local _convert = function( val, t )
-    if t:match( 'number' ) or t:match( 'integer' ) or t:match( 'float' ) then
+    if t:match( 'number' ) or t:match( 'integer' ) or t:match( 'float' ) or t:match( 'rational' ) then
       return tonumber( val )
     elseif t:match( 'boolean' ) then
       return ( val:lower():trim() == 'true' or val:trim() == '1' )
     else
-      return val
+      -- unescape
+      if type( val ) == 'string' then
+        return ngx.unescape_uri( val )
+      else
+        return val
+      end
     end
   end
 
-  local standardized_type = to_type:gsub( '[_ ]', '' ):lower()
+  if type( to_type ) == 'table' then
 
-  if standardized_type:ends( 'array' ) then
-    if type( value ) ~= 'table' or not table.isarray( value ) then error( 'type change of an array type expects a table', 2 ) end
-    local results = {}
-    for i = 1, #value do
-      results[i] = _convert( value[i], standardized_type )
+    -- if array conversion
+    if table.isarray( to_type ) then
+      if #to_type == 1 then
+
+        if type( to_type[1] ) == 'string' then
+          if type( value ) == 'table' and table.isarray( value ) then
+            local results = {}
+            for i = 1, #value do
+              results[i] = _convert( value[i], to_type[1] )
+            end
+            return results
+          end
+        elseif type( to_type[1] ) == 'table' then
+          if type( value ) == 'table' and table.isarray( value ) then
+            local array_result = {}
+            for index, item in ipairs( value ) do
+             array_result[index] = RESTfully._string_type_convert( item, to_type[1] )
+            end
+            return array_result
+          else
+            error( "complex type array provided for conversion of simple data or non-array" )
+          end
+        else
+          error( "invalid array type" )
+        end
+
+      else
+        error( "arrays of a particular type must be represented as {'[type_string]'} or { [mapping_table] }" )
+      end
+    -- if complex data type conversion (non-array)
+    else
+      if type( value ) == 'table' then
+        local inner_result = {}
+        for inner_name, inner_map in pairs( to_type ) do
+          inner_result[inner_name] = RESTfully._string_type_convert( value[inner_name], inner_map.type )
+        end
+        return inner_result
+      else
+        error( "complex type provided for conversion of simple data" )
+      end
     end
-    return results
+
+  -- simple
   else
-    return _convert( value, standardized_type )
+    if value then
+      return _convert( value, to_type )
+    end
   end
 
 end
 
 
 
-function RESTfully._posted_name_to_value( name, value, posted, mapping )
+function RESTfully._posted_name_to_value( name, value, posted )
 
   if name:match( '%[' ) then
 
@@ -321,40 +386,32 @@ function RESTfully._posted_name_to_value( name, value, posted, mapping )
         if count < #indices then
           var_sofar = var_sofar[index]
         else
-          --local clean_name = name:gsub( '[
-          --var_sofar[index] = RESTfully._string_type_convert( value, table.dotget( mapping, name..'.type' ) )
-
           var_sofar[index] = value
         end
       end
     end
 
   else
-    posted[name] = RESTfully._string_type_convert( value, table.dotget( mapping, name..'.type' ) )
-    --posted[name] = value
+    posted[name] = value
   end
 end
 
 
 
-function RESTfully.post_to_table( posted, mapping )
-  local mapping = ( mapping or {} )
+function RESTfully.post_args_to_table( posted, mapping )
 
   local results = {}
   local input = posted
 
   for name, value in pairs( input ) do
-    RESTfully._posted_name_to_value( name, value, results, mapping )
+    RESTfully._posted_name_to_value( name, value, results )
   end
 
-  -- if a mapping is supplied with type information then try to convert types
-  --if mapping then
---    for name, value in pairs( results ) do
-      --RESTfully._posted_name_to_value( name, value, results )
-    --end
-  --end
-
-  return results
+  if mapping then
+    return RESTfully._string_type_convert( results, mapping )
+  else
+    return results
+  end
 
 end
 
