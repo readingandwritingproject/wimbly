@@ -266,11 +266,12 @@ end
 
 
 -- convert a string (or some table structure of strings) to the passed type
-function RESTfully._string_type_convert( value, to_type )
+function RESTfully._string_type_convert( value, to_type, name )
   local to_type = ( to_type or '' )
+  local name = ( name or '' )
 
   local _convert = function( val, t )
-    if t:match( 'number' ) or t:match( 'integer' ) or t:match( 'float' ) or t:match( 'rational' ) then
+    if t:match( 'number' ) or t:match( 'integer' ) or t:match( 'rational' ) then
       return tonumber( val )
     elseif t:match( 'boolean' ) then
       return ( val:lower():trim() == 'true' or val:trim() == '1' )
@@ -302,11 +303,13 @@ function RESTfully._string_type_convert( value, to_type )
           if type( value ) == 'table' and table.isarray( value ) then
             local array_result = {}
             for index, item in ipairs( value ) do
-             array_result[index] = RESTfully._string_type_convert( item, to_type[1] )
+              local nsf; nsf = name..'['..(index - 1)..']'
+              array_result[index] = RESTfully._string_type_convert( item, to_type[1], nsf )
             end
             return array_result
           else
-            error( "complex type array provided for conversion of simple data or non-array" )
+            if name ~= '' then name = ' at '..name end
+            error( "complex type array provided for conversion of simple data or non-array"..name )
           end
         else
           error( "invalid array type" )
@@ -320,11 +323,15 @@ function RESTfully._string_type_convert( value, to_type )
       if type( value ) == 'table' then
         local inner_result = {}
         for inner_name, inner_map in pairs( to_type ) do
-          inner_result[inner_name] = RESTfully._string_type_convert( value[inner_name], inner_map.type )
+          --ngx.say( inspect( value ) )
+          --ngx.say( 'inner_name: ', inner_name, ', inner_map.type: ', inspect( inner_map.type ), ', value[inner_name]: ', inspect( value[inner_name] ) )
+          local nsf; if name ~= '' then nsf = name..'.'..inner_name else nsf = inner_name end
+          inner_result[inner_name] = RESTfully._string_type_convert( value[inner_name], inner_map.type, nsf )
         end
         return inner_result
-      else
-        error( "complex type provided for conversion of simple data" )
+      elseif value then
+        if name ~= '' then name = ' at '..name end
+        error( "complex type provided for conversion of simple data"..name )
       end
     end
 
@@ -340,6 +347,8 @@ end
 
 
 function RESTfully._posted_name_to_value( name, value, posted )
+
+  --ngx.say( '<hr />name: ', name, ', value: ', value )
 
   if name:match( '%[' ) then
 
@@ -360,6 +369,7 @@ function RESTfully._posted_name_to_value( name, value, posted )
     local var_sofar = posted
     local index = ''
 
+    -- split each entry into its parts
     local indices = {}
     for index in name:gmatch( '%[(.-)%]' ) do
       table.insert( indices, index )
@@ -368,7 +378,7 @@ function RESTfully._posted_name_to_value( name, value, posted )
     for count, index in ipairs( indices ) do
 
       -- handle array indexes
-      if index:match( '^%d' ) then
+      if index:match( '^%d+$' ) then
         -- switch to array lookups and account for lua counting from 1
         index = tonumber( index ) + 1
       end
@@ -403,11 +413,13 @@ function RESTfully.post_args_to_table( posted, mapping )
   local results = {}
   local input = posted
 
-  for name, value in pairs( input ) do
+  -- ordered names iterator
+  for name, value in opairs( input ) do
     RESTfully._posted_name_to_value( name, value, results )
   end
 
   if mapping then
+    --RESTfully.json( mapping )
     return RESTfully._string_type_convert( results, mapping )
   else
     return results
