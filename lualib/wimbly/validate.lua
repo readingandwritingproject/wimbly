@@ -511,8 +511,9 @@ function validate.for_creation( values, mapping, options )
     opts[key] = value
   end
 --ngx.say( '<pre>', inspect( values ), '<hr />', inspect( mapping ), '</pre>' )
-  return validate.mapping( values, mapping, { ignore_required = false, ignore_readonly = true } )
+  return validate.mapping( values, mapping, opts )
 end
+
 
 function validate.for_update( values, mapping, options )
   local options = ( options or {} )

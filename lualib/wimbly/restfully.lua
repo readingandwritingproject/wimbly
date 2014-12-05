@@ -154,7 +154,7 @@ function RESTfully.GET.metadata( model_path )
         readonly = ( values.readonly or false ),
       }
 
-      if values.type == 'enumeration' and values.values and type( values.values ) == 'table' then
+      if values.values and type( values.values ) == 'table' then
         if table.isarray( values.values ) then
           results[key].values = values.values
         else
@@ -179,6 +179,7 @@ function RESTfully.GET.metadata( model_path )
 
 end
 
+--[[
 
 function RESTfully.POST.create( model_path )
 
@@ -213,65 +214,62 @@ function RESTfully.POST.create( model_path )
   return model
 
 end
+--]]
 
 
+function RESTfully.POST.create( model_path )
 
-function RESTfully.POST.create2( model_path )
-
-  local BusinessModel = require( model_path )
+  local Model = require( model_path )
   local model_name = RESTfully._generate_human_readable_model_name( model_path )
 
-  ngx.req.read_body()
-  local posted = restfully.post_to_table( ngx.req.get_post_args(), BusinessModel.fieldMapping )
-
-  ngx.say( 'posted', inspect( posted ) )
-
-  local valid, errors, cleaned = validate.for_creation( posted, BusinessModel.fieldMapping )
-
-  ngx.say( 'cleaned', inspect( cleaned ) )
-  --ngx.exit( ngx.OK )
-
-
   local results = {}
-  local model = nil
+
+  -- must read the request body up front
+  ngx.req.read_body()
+  --ngx.say( inspect( ngx.req.get_post_args() ) )
+  -- coerce types to resemble fieldMapping as closely as possible
+  local posted = RESTfully.post_args_to_table( ngx.req.get_post_args(), Model.fieldMapping )
+
+  --ngx.say( inspect( posted ) )
+
+  local valid, errors = validate.for_creation( posted, Model.fieldMapping, { zero_based_indexing = true } )
 
   if not valid then
     ngx.status = ngx.HTTP_BAD_REQUEST
     results.message = 'submitted '..model_name..' values are invalid'
     results.errors = errors
   else
-    model = BusinessModel:insert( cleaned )
-    if not model then
+    local object = Model:insert( posted )
+    if not object then
       ngx.status = ngx.HTTP_BAD_REQUEST
       results.message = model_name..' creation failed'
     else
       results.message = model_name..' created successfully'
-      results.details = model:data()
+      results.details = object:data()
     end
   end
 
   RESTfully.json( results )
-  return model
 
 end
 
 
 function RESTfully.POST.delete( model_path, loader, load_parameter )
 
-  local BusinessModel = require( model_path )
+  local Model = require( model_path )
   local model_name = RESTfully._generate_human_readable_model_name( model_path )
 
   local results = {}
 
-  local business_object
+  local object
   local parameter = ngx.var['arg_'..load_parameter ]
 
   if parameter ~= nil then
-    business_object = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ) )
+    object = Model[loader]( Model, ngx.unescape_uri( parameter ) )
   end
 
-  if business_object then
-    business_object:delete()
+  if object then
+    object:delete()
     results.message = model_name..' deleted'
   else
     ngx.status = ngx.HTTP_BAD_REQUEST
@@ -461,39 +459,45 @@ RESTfully.uri_args_to_table = RESTfully.post_args_to_table
 
 
 
-function RESTfully.POST.data2( model_path, loader, load_parameter )
+function RESTfully.POST.data( model_path, loader, load_parameter )
 
-  local BusinessModel = require( model_path )
+  local Model = require( model_path )
   local model_name = RESTfully._generate_human_readable_model_name( model_path )
 
   local results = {}
 
-  local business_object
+  local object
   local parameter = ngx.var['arg_'..load_parameter ]
 
   if parameter ~= nil then
-    business_object = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ) )
+    object = Model[loader]( Model, ngx.unescape_uri( parameter ) )
   end
 
-  if business_object then
+  if object then
     -- must read the request body up front
     ngx.req.read_body()
     --ngx.say( inspect( ngx.req.get_post_args() ) )
     -- coerce types to resemble fieldMapping as closely as possible
-    local posted = RESTfully.post_args_to_table( ngx.req.get_post_args(), BusinessModel.fieldMapping )
+    local posted = RESTfully.post_args_to_table( ngx.req.get_post_args(), Model.fieldMapping )
 
-    local valid, errors = validate.for_update( posted, BusinessModel.fieldMapping, { zero_based_indexing = true } )
+    --ngx.say( inspect( posted ) )
+
+    local valid, errors = validate.for_update( posted, Model.fieldMapping, { zero_based_indexing = true } )
 
     if not valid then
       ngx.status = ngx.HTTP_BAD_REQUEST
       results.message = 'submitted '..model_name..' values are invalid'
       results.errors = errors
     else
-      business_object:set( posted )
+      object:set( posted )
       results.message = model_name..' updated successfully'
 
+      --ngx.say( '\n\n'..tostring( business_object:get( 'active' ) )..'\n\n' )
+      --ngx.say( '\n\n'..inspect( business_object )..'\n\n' )
+
+
       -- reload from database to verify changes and force cache flush
-      results.data = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ), { reload = true } ):data()
+      results.data = Model[loader]( Model, ngx.unescape_uri( parameter ), { reload = true } ):data()
     end
   else
     ngx.status = ngx.HTTP_BAD_REQUEST
@@ -505,6 +509,7 @@ function RESTfully.POST.data2( model_path, loader, load_parameter )
 end
 
 
+--[==[
 function RESTfully.POST.data( model_path, loader, load_parameter )
 
   local BusinessModel = require( model_path )
@@ -545,6 +550,6 @@ function RESTfully.POST.data( model_path, loader, load_parameter )
   RESTfully.json( results )
 
 end
-
+--]==]
 
 return RESTfully
