@@ -14,7 +14,7 @@ see Institute.propertyMapping for an example of a valid field to property mappin
 -- sqldate
 -- yesno array
 
-
+--[[
 function validate.field( name, value, mapping )
   if ( mapping == nil ) then
     return false, "unable to validate field '"..name.."' without a mapping"
@@ -129,8 +129,9 @@ function validate.field( name, value, mapping )
 
   return true
 end
+--]]
 
-
+--[[
 function validate.fields( fields, mapping, options )
   local options = options or {}
 
@@ -161,8 +162,9 @@ function validate.fields( fields, mapping, options )
   return #errors == 0, errors
 
 end
+--]]
 
-
+--[[
 function validate.convert( name, value, typ, options )
   local options = options or {}
 
@@ -193,8 +195,9 @@ function validate.convert( name, value, typ, options )
 
   return success, value
 end
+--]]
 
-
+--[[
 function validate.transform2( posted, mapping, options )
   local options = options or {}
 
@@ -203,9 +206,9 @@ function validate.transform2( posted, mapping, options )
 
   return #errors == 0, errors, cleaned
 end
+--]]
 
-
-
+--[[
 function validate.transform( posted, mapping, options )
   local options = options or {}
 
@@ -270,8 +273,9 @@ function validate.transform( posted, mapping, options )
 
   return #errors == 0, errors, cleaned
 end
+--]]
 
-
+--[[
 function validate.for_creation( posted, mapping, options )
   -- check that all required fields are present
   local options = options or { create = true }
@@ -294,7 +298,7 @@ function validate.for_creation( posted, mapping, options )
 
   return #errors == 0, errors, cleaned
 end
-
+--]]
 
 function validate.mapping( values, mapping, options, name_so_far )
   local options = options or { ignore_required = false, ignore_readonly = false, report_unknown = false, zero_based_indexing = false }
@@ -312,6 +316,26 @@ function validate.mapping( values, mapping, options, name_so_far )
       error( "unknown type '"..( type or 'nil' ).."' at '"..name.."'" )
     end
   end
+
+  -- seek the provided value in an enumeration of values
+  local _enumerate = function( value, allowed, name )
+    if type( allowed ) == 'table' then
+      local found = false
+      if table.isarray( allowed ) then
+        for _, val in ipairs( allowed ) do
+          if value == val then found = true; break end
+        end
+      else
+        found = allowed[value]
+      end
+      if not found then
+        return "'"..value.."' not found in list of allowed values at '"..name.."'"
+      end
+    else
+      error( "non-table values at '"..name.."'" )
+    end
+  end
+
 
   -- mappings must be key-value tables not arrays
   if not type( mapping ) == 'table' or table.isarray( mapping ) then
@@ -340,7 +364,17 @@ function validate.mapping( values, mapping, options, name_so_far )
     if options.report_unknown then
       for name, _ in pairs( values ) do
         if mapping[name] == nil then
-          local nsf ; if name_so_far ~= '' then nsf = name_so_far..'.'..name else nsf = name end
+          local nsf
+          if name_so_far ~= '' then
+            if type( name ) == 'number' then
+              if options.zero_based_indexing then name = name - 1 end
+              nsf = name_so_far..'['..tostring(name)..']'
+            else
+              nsf = name_so_far..'.'..name
+            end
+          else
+            nsf = name
+          end
           table.insert( errors, { name = nsf, message = 'field not found in mapping and can not be validated' } )
         end
       end
@@ -374,7 +408,7 @@ function validate.mapping( values, mapping, options, name_so_far )
         -- if potentially an array type
         if type( to_type ) == 'table' then
 
-          if table.isarray( to_type ) and #to_type == 1 and type( to_type[1] ) == 'string' then
+          if table.isarray( to_type ) and #to_type == 1 then  -- and type( to_type[1] ) == 'string' then
             if type( values ) == 'table' and table.isarray( values ) then
               local mod_mapping = table.copy( mapping )
               mod_mapping.type = to_type[1]
@@ -384,7 +418,13 @@ function validate.mapping( values, mapping, options, name_so_far )
                 else
                   nsf = name_so_far..'['..index..']'
                 end
-                local _, errs = validate.mapping( values[index], mod_mapping, options, nsf )
+
+                local errs
+                if type( to_type[1] ) == 'string' then
+                  _, errs = validate.mapping( values[index], mod_mapping, options, nsf )
+                else
+                  _, errs = validate.mapping( values[index], mod_mapping.type, options, nsf )
+                end
                 for _, err in ipairs( errs ) do table.insert( errors, err ) end
               end
             else
@@ -400,11 +440,22 @@ function validate.mapping( values, mapping, options, name_so_far )
         else
 
           if values then
-            local error_message = _validate( values, to_type, name_so_far )
-            if error_message then table.insert( errors, { name = name_so_far, message = error_message } ) end
+            local error_message
+            if mapping.validation then
+              error_message = mapping.validation( values, name_so_far )
+            else
+              if not mapping.values then
+                error_message = _validate( values, to_type, name_so_far )
+              else
+                error_message = _enumerate( values, mapping.values, name_so_far )
+              end
+              if error_message then table.insert( errors, { name = name_so_far, message = error_message } ) end
+            end
           end
+
         end
       end
+
     -- value is nil
     elseif mapping.required and not options.ignore_required then
       table.insert( errors, { name = name_so_far, message = 'no value supplied for field marked required' } )
@@ -416,7 +467,7 @@ function validate.mapping( values, mapping, options, name_so_far )
 end
 
 
-
+--[[
 function validate.for_creation2( posted, mapping, options )
   local options = options or { create = true }
 
@@ -438,19 +489,43 @@ function validate.for_creation2( posted, mapping, options )
 
   return #errors == 0, errors, cleaned
 end
+--]]
 
 
-
+--[[
 function validate.parameters( params, mapping )
   return validate.for_creation( params, mapping, { create = true, unescape = true } )
 end
+--]]
 
+-- XXX : not needed
+--function validate.parameters2( params, mapping )
+  --return validate.mapping( params, mapping, { ignore_required = false, ignore_readonly = true } ) --create = true, unescape = true } )
+--end
 
-function validate.parameters2( params, mapping )
-  return validate.mapping( params, mapping, { ignore_required = false, ignore_readonly = true } ) --create = true, unescape = true } )
+function validate.for_creation( values, mapping, options )
+  local options = ( options or {} )
+
+  local opts = { ignore_required = false, ignore_readonly = true }
+  for key, value in pairs( options ) do
+    opts[key] = value
+  end
+--ngx.say( '<pre>', inspect( values ), '<hr />', inspect( mapping ), '</pre>' )
+  return validate.mapping( values, mapping, { ignore_required = false, ignore_readonly = true } )
 end
 
+function validate.for_update( values, mapping, options )
+  local options = ( options or {} )
 
+  local opts = { ignore_required = true, ignore_readonly = false }
+  for key, value in pairs( options ) do
+    opts[key] = value
+  end
+  --ngx.say( '<pre>', inspect( values ), '<hr />', inspect( mapping ), '</pre>' )
+  return validate.mapping( values, mapping, opts )
+end
+
+--[[
 function validate.for_update( posted, mapping )
   -- check that all readonly fields are left alone
   local options = options or { readonly = true }
@@ -469,7 +544,7 @@ function validate.for_update( posted, mapping )
 
   return #errors == 0, errors, cleaned
 end
-
+--]]
 
 function validate.type.string( str )
   local valid = type( str ) == 'string'
@@ -491,7 +566,7 @@ function validate.type.number( num )
 end
 
 
--- not sure how to re-implement these...
+--[[
 function validate.type.enumeration( submitted, values )
   local vals = {}
 
@@ -510,22 +585,29 @@ function validate.type.enumeration( submitted, values )
   end
 
 end
-
+--]]
 
 function validate.type.sqldatetime( str )
   local str = tostring( str )
   local parts = str:split( ' ' )
   local valid = true
 
-  local datepart = validate.type.sqldate( parts[1] )
+  if #parts == 2 then
+    local datepart = validate.type.sqldate( parts[1] )
 
-  local h, m, s = parts[2]:match( '^([0-2][0-9]):([0-5][0-9]):([0-5][0-9])$' )
+    local h, m, s = parts[2]:match( '^([0-2][0-9]):([0-5][0-9]):([0-5][0-9])$' )
 
-  h = tonumber( h )
+    h = tonumber( h )
 
-  if ( h ~= nil and m ~= nil and s ~= nil ) then
-    valid = ( h <= 23 and datepart )
+    if ( h ~= nil and m ~= nil and s ~= nil ) then
+      valid = ( h <= 23 and datepart )
+    else
+      valid = false
+    end
+  else
+    valid = false
   end
+
   if valid then
     return true
   else

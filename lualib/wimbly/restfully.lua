@@ -33,7 +33,7 @@ function RESTfully.respond( content, ngx_status )
   return ngx.exit( ngx.OK )
 end
 
-
+--[[
 function RESTfully.validate( parameters_mapping )
 
   local params = {}
@@ -51,29 +51,47 @@ function RESTfully.validate( parameters_mapping )
   return cleaned
 
 end
+--]]
 
+-- XXX:
+-- TODO: keep same or similar validate function but add restfully.arguments function that
 
-function RESTfully.validate2( parameters_mapping )
+function RESTfully.arguments( options )
+  local options = ( options or { uri = true, post = true } )
 
-  --ngx.say( 'in validate2' )
-  local params = {}
-  for name, mapping in pairs( parameters_mapping ) do
-    params[name] = mapping.location
+  -- populate ctx with arguments if not already done so
+  if options.uri then
+    ngx.ctx.uri = restfully.uri_args_to_table( ngx.req.get_uri_args() )
+  end
+  if ngx.req.get_method() == 'POST' and options.post then
+    ngx.req.read_body()
+    ngx.ctx.post = restfully.post_args_to_table( ngx.req.get_post_args() )
   end
 
-  local success, errors = validate.parameters2( params, parameters_mapping )
-
-  --local success, errors, cleaned = validate.parameters2( params, parameters_mapping )
-  if not success then
-    return restfully.respond( errors, ngx.HTTP_BAD_REQUEST )
-    --restfully.json( errors )
-    --return ngx.exit( ngx.OK )
-  end
-
-  return params
-
+  return ngx.ctx.uri, ngx.ctx.post
 end
 
+
+-- accept values table and mapping or a combined single table
+function RESTfully.validate( values_and_mapping, options )
+  local options = ( options or { coerce_types = true } )
+
+  local values = {}
+  for name, map in pairs( values_and_mapping ) do
+    values[name] = RESTfully._string_type_convert( map.location, map.type, name )
+  end
+
+  local success, errors = validate.for_creation( values, values_and_mapping )
+
+  if not success then
+    return restfully.respond( errors, ngx.HTTP_BAD_REQUEST )
+  else
+    return values
+  end
+end
+
+--[[
+--]]
 
 function RESTfully._generate_human_readable_model_name( model_path )
   local parts = model_path:split( '/' )
@@ -272,9 +290,18 @@ function RESTfully._string_type_convert( value, to_type, name )
 
   local _convert = function( val, t )
     if t:match( 'number' ) or t:match( 'integer' ) or t:match( 'rational' ) then
-      return tonumber( val )
+      if tostring( tonumber( val ) ) == val then
+        return tonumber( val )
+      else
+        return val
+      end
     elseif t:match( 'boolean' ) then
-      return ( val:lower():trim() == 'true' or val:trim() == '1' )
+      local tester = val:lower():trim()
+      if tester == 'true' or tester == 'false' or tester == '1' or tester == '0' then
+        return ( tester == 'true' or tester == '1' )
+      else
+        return val
+      end
     else
       -- unescape
       if type( val ) == 'string' then
@@ -426,14 +453,52 @@ function RESTfully.post_args_to_table( posted, mapping )
   end
 
 end
+RESTfully.uri_args_to_table = RESTfully.post_args_to_table
+
+--function RESTfully.uri_args_to_table( gotten, mapping )
+--  return RESTfully.post_args_to_table( gotten, mapping )
+--end
+
 
 
 function RESTfully.POST.data2( model_path, loader, load_parameter )
 
-  ngx.req.read_body()
-  local posted = ngx.req.get_post_args()
+  local BusinessModel = require( model_path )
+  local model_name = RESTfully._generate_human_readable_model_name( model_path )
 
-  local results = RESTfully.post_to_table( posted )
+  local results = {}
+
+  local business_object
+  local parameter = ngx.var['arg_'..load_parameter ]
+
+  if parameter ~= nil then
+    business_object = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ) )
+  end
+
+  if business_object then
+    -- must read the request body up front
+    ngx.req.read_body()
+    --ngx.say( inspect( ngx.req.get_post_args() ) )
+    -- coerce types to resemble fieldMapping as closely as possible
+    local posted = RESTfully.post_args_to_table( ngx.req.get_post_args(), BusinessModel.fieldMapping )
+
+    local valid, errors = validate.for_update( posted, BusinessModel.fieldMapping, { zero_based_indexing = true } )
+
+    if not valid then
+      ngx.status = ngx.HTTP_BAD_REQUEST
+      results.message = 'submitted '..model_name..' values are invalid'
+      results.errors = errors
+    else
+      business_object:set( posted )
+      results.message = model_name..' updated successfully'
+
+      -- reload from database to verify changes and force cache flush
+      results.data = BusinessModel[loader]( BusinessModel, ngx.unescape_uri( parameter ), { reload = true } ):data()
+    end
+  else
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    results.message = model_name..' not found'
+  end
 
   RESTfully.json( results )
 
