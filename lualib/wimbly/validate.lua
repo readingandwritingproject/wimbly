@@ -616,6 +616,7 @@ function validate.type.sqldatetime( str )
   end
 
 end
+validate.type['sql datetime'] = validate.type.sqldatetime
 
 
 -- check whether string could be a sqldate
