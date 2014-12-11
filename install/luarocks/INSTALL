@@ -35,3 +35,5 @@ $ $WIMBLY_PATH/luajit/bin/luarocks install LuaFileSystem
 $ $WIMBLY_PATH/luajit/bin/luarocks install telescope
 
 $ $WIMBLY_PATH/luajit/bin/luarocks install csv
+
+$ $WIMBLY_PATH/luajit/bin/luarocks install mimetypes
