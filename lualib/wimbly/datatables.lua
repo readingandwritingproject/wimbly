@@ -16,10 +16,23 @@ function DataTables._collection( collection_path, options )
   for _, row in ipairs( collection:rows() ) do
     local tablerow = {}
     for _, column in ipairs( options.columns ) do
-      if Collection.fieldMapping[column].location then
-        table.insert( tablerow, row[column] )
-      elseif Collection.fieldMapping[column].accessor then
-        table.insert( tablerow, Collection.fieldMapping[column].accessor( row ) )
+
+      --ngx.say( 'column: ', column )
+      --ngx.say( inspect( Collection.fieldMapping ) )
+
+      if column == '_action' then
+        --ngx.say( inspect( row ) )
+        if row.id then
+          table.insert( tablerow, '<span id="action_'..row.id..'"></span>' )
+        else
+          table.insert( tablerow, '<span class="action"></span>' )
+        end
+      else
+        if Collection.fieldMapping[column].location then
+          table.insert( tablerow, row[column] )
+        elseif Collection.fieldMapping[column].accessor then
+          table.insert( tablerow, Collection.fieldMapping[column].accessor( row ) )
+        end
       end
     end
     table.insert( tablerows, tablerow )
@@ -63,6 +76,8 @@ function DataTables.GET.collection( collection_path, parameters )
     order_direction = datatable_params.order_direction,
     conditions = parameters
   }
+
+  --ngx.say( inspect( options.conditions ) )
 
   restfully.respond( DataTables._collection( collection_path, options ) )
 end
