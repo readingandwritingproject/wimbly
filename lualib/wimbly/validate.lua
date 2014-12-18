@@ -385,6 +385,9 @@ function validate.mapping( values, mapping, options, name_so_far )
       local nsf ; if name_so_far ~= '' then nsf = name_so_far..'.'..name else nsf = name end
 
       local errs
+
+      --ngx.say( '-----------\n name: ', inspect( name ), ', map: ', inspect( map ) )
+
       if type ( map.type ) == 'table' and not table.isarray( map.type ) then
         _, errs = validate.mapping( values[name], map.type, options, nsf )
       else
