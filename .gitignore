@@ -16,6 +16,7 @@ application/*
 !static
 static/*
 !static/STATIC_FILES_GO_HERE
+!static/error_page
 !static/error_page/403.json
 !static/error_page/404.json
 !static/error_page/500.json
