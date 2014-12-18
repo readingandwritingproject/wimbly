@@ -345,10 +345,11 @@ function validate.mapping( values, mapping, options, name_so_far )
 
   -- determine if a single mapping or a table of mappings
   -- (if every value is a table then is a table of mappings otherwise a single mapping)
+  -- (also check we are not confusing a table of values with an inner type)
   local table_of_mappings = true
   for key, map in pairs( mapping ) do
     --ngx.say( '--- key: ', key, '<br />' )
-    if type( map ) ~= 'table' or table.isarray( map ) then table_of_mappings = false end
+    if type( map ) ~= 'table' or table.isarray( map ) or ( key == 'values' and not ( map.type or map.values ) ) then table_of_mappings = false end
   end
 
   -- check validity of table of mappings and recursively call validate.mapping with single mapping and corresponding value
@@ -386,7 +387,7 @@ function validate.mapping( values, mapping, options, name_so_far )
 
       local errs
 
-      --ngx.say( '-----------\n name: ', inspect( name ), ', map: ', inspect( map ) )
+      --ngx.say( '-----------\n name: ', inspect( name ), ', map: ', inspect( map ), '<br />' )
 
       if type ( map.type ) == 'table' and not table.isarray( map.type ) then
         _, errs = validate.mapping( values[name], map.type, options, nsf )
