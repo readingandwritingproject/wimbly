@@ -1,1 +1,1 @@
-{ success = 'false', code = 403, message = '403 Forbidden' }
+{ "success": false, "code": 403, "message": "403 Forbidden" }
