@@ -140,10 +140,25 @@ function table.dotget( t, path )
   for level, part in ipairs( parts ) do
     if node == nil then return nil end
 
+    local index
+    -- if part contains a number index
+    if part:match( '.+%[%d+%]$' ) then
+      part, index = part:match( '(.+)%[(%d+)%]' )
+      index = tonumber( index )
+    end
+
     if level < #parts then
-      node = node[part]
+      if index then
+        node = node[part][index]
+      else
+        node = node[part]
+      end
     elseif level == #parts then
-      return node[part]
+      if index then
+        return node[part][index]
+      else
+        return node[part]
+      end
     end
   end
 
@@ -156,11 +171,29 @@ function table.dotset( t, path, value )
   local node = t
 
   for level, part in ipairs( parts ) do
+
+    local index
+    -- if part contains a number index
+    if part:match( '.+%[%d+%]$' ) then
+      part, index = part:match( '(.+)%[(%d+)%]' )
+      index = tonumber( index )
+    end
+
     if level < #parts then
       if node[part] == nil then node[part] = {} end
-      node = node[part]
+      if index then
+        if node[part][index] == nil then node[part][index] = {} end
+        node = node[part][index]
+      else
+        node = node[part]
+      end
     elseif level == #parts then
-      node[part] = value
+      if index then
+        if node[part] == nil then node[part] = {} end
+        node[part][index] = value
+      else
+        node[part] = value
+      end
     end
   end
 
@@ -179,36 +212,36 @@ end
 
 
 -- only contiguous integer indices starting at 1 constitute an array
-function table.isarray( t )  
+function table.isarray( t )
   local max = 0
   local count = 0
-  
+
   for key, value in pairs( t ) do
     if type( key ) == 'number' then
       if key > max then max = key end
       count = count + 1
     else
-      return false 
+      return false
     end
   end
-  
+
   if max ~= count then
-    return false 
+    return false
   else
     return max
   end
-  
-end  
+
+end
 
 
 function table.slice( t, i1, i2 )
   local res = {}
   local n = #t
-  
+
   -- default values for range
   i1 = i1 or 1
   i2 = i2 or n
-  
+
   if i2 < 0 then
     i2 = n + i2 + 1
   elseif i2 > n then
@@ -240,14 +273,14 @@ function table.tocsv( t )
       str = str..','..item
     end
   end
-  
+
   return str:sub( 2 ) -- remove first comma
 end
 
 
 function table.indexby( t, key_name )
   local result = {}
-  
+
   for _, element in ipairs( t ) do
     result[ element[ key_name ] ] = element
   end
@@ -256,11 +289,11 @@ function table.indexby( t, key_name )
 end
 
 
-function table.difference( from, take )  
+function table.difference( from, take )
   local result_lookup = {}
   for _, element in ipairs( from ) do result_lookup[element] = true end
   for _, element in ipairs( take ) do result_lookup[element] = nil end
-  
+
   local result = {}
   local index = 1
   for _, item in ipairs( from ) do
@@ -269,7 +302,7 @@ function table.difference( from, take )
       index = index + 1
     end
   end
-  
+
   return result
 end
 
@@ -286,6 +319,6 @@ function table.intersection( a, b )
       index = index + 1
     end
   end
-  
+
   return result
 end
