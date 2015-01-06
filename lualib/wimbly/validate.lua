@@ -388,11 +388,19 @@ function validate.mapping( values, mapping, options, name_so_far )
       local errs
 
       --ngx.say( '-----------\n name: ', inspect( name ), ', map: ', inspect( map ), '<br />' )
+      --ngx.log( ngx.ERR, '-----------\n name: ', inspect( name ), ', map: ', inspect( map ), '<br />' )
+
+      local vals
+      if values == nil or values[name] == nil then
+        vals = nil
+      else
+        vals = values[name]
+      end
 
       if type ( map.type ) == 'table' and not table.isarray( map.type ) then
-        _, errs = validate.mapping( values[name], map.type, options, nsf )
+        _, errs = validate.mapping( vals, map.type, options, nsf )
       else
-        _, errs = validate.mapping( values[name], map, options, nsf )
+        _, errs = validate.mapping( vals, map, options, nsf )
       end
       for _, err in ipairs( errs ) do table.insert( errors, err ) end
 
