@@ -453,16 +453,16 @@ function validate.mapping( values, mapping, options, name_so_far )
 
           if values then
             local error_message
-            if mapping.validation then
-              error_message = mapping.validation( values, name_so_far )
+            if mapping.validator then
+              error_message = mapping:validator( name_so_far, values )
             else
               if not mapping.values then
                 error_message = _validate( values, to_type, name_so_far )
               else
                 error_message = _enumerate( values, mapping.values, name_so_far )
               end
-              if error_message then table.insert( errors, { name = name_so_far, message = error_message } ) end
             end
+            if error_message then table.insert( errors, { name = name_so_far, message = error_message } ) end
           end
 
         end
