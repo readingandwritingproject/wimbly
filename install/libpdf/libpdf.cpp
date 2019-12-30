@@ -118,7 +118,7 @@ void mark_file( const char* iname, const char *oname, const char* name, const ch
       //DEPRECATD:
       //painter.DrawCircle( 20, -22, 7 );
       //NEW:
-      painter.Circle( 20, -22. 7 );
+      painter.Circle( 20, -22, 7 );
       painter.Stroke();
       
 
