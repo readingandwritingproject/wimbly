@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <unistd.h>
 
 #include <cstdio>
 #include <ctime>
@@ -54,7 +55,10 @@ void mark_file( const char* iname, const char *oname, const char* name, const ch
 
   // add image
   PdfImage image( &document );
-  image.LoadFromFile( DANCING_GIRL_PDF_PATH );
+  
+  if ( access( DANCING_GIRL_PDF_PATH, F_OK ) != -1 ) { 
+    image.LoadFromFile( DANCING_GIRL_PDF_PATH );
+  }
 
   int nPages = document.GetPageCount();
 
@@ -78,12 +82,21 @@ void mark_file( const char* iname, const char *oname, const char* name, const ch
       pFont->SetFontSize( 8.0 );
 
       painter.SetFont( pFont );
-      painter.SetTransformationMatrix( 0, 1, -1, 0, 0, 0 );
 
+	  // set Reflection effect
+	  painter.SetTransformationMatrix( 1, 0, 0, -1, 0 ,pPage->GetPageSize().GetHeight() );
+	  
+	  
       rect = PdfRect( 8, -35, 400, 25 );
 
       // white internal fill
-      painter.SetColor( 1, 1, 1 );
+      painter.SetColor( 1, 1, 1 ); // ORIGINAL
+	  
+	  
+	  // set transformatoin for remainder of stamp
+      painter.SetTransformationMatrix( 0, 1, -1, 0, 0, 0 );
+
+	  
       //DEPRECATED:
       //painter.FillRect( rect );
       //NEW:
@@ -102,7 +115,7 @@ void mark_file( const char* iname, const char *oname, const char* name, const ch
       
       
       // insert image
-      painter.DrawImage( 388, -33, &image, 0.09, 0.09 );
+      painter.DrawImage( 388, -33, &image, 0.006, 0.006 );//, 0.09, 0.09 );
 
       char line1[128];
       char line2[128];
