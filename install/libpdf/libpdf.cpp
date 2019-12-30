@@ -84,14 +84,23 @@ void mark_file( const char* iname, const char *oname, const char* name, const ch
 
       // white internal fill
       painter.SetColor( 1, 1, 1 );
-      painter.FillRect( rect );
+      //DEPRECATED:
+      //painter.FillRect( rect );
+      //NEW:
+      painter.Rectangle( rect );
+      painter.Fill();
 
       painter.SetStrokeWidth( 0.1 );
 
       // black outline
       painter.SetColor( 0, 0, 0 );
-      painter.DrawRect( rect );
-
+      //DEPRECATED:
+      //painter.DrawRect( rect );
+      //NEW:
+      painter.Rectangle( rect );
+      painter.Stroke();
+      
+      
       // insert image
       painter.DrawImage( 388, -33, &image, 0.09, 0.09 );
 
@@ -106,7 +115,12 @@ void mark_file( const char* iname, const char *oname, const char* name, const ch
 
       painter.SetStrokeWidth( 1.0 );
 
-      painter.DrawCircle( 20, -22, 7 );
+      //DEPRECATD:
+      //painter.DrawCircle( 20, -22, 7 );
+      //NEW:
+      painter.Circle( 20, -22, 7 );
+      painter.Stroke();
+      
 
       pFont->SetFontSize( 16.0 );
       painter.SetFont( pFont );
@@ -188,13 +202,23 @@ void mark_buffer( const char* buffer, long buffer_size, const char *oname, const
 
       // white internal fill
       painter.SetColor( 1, 1, 1 );
-      painter.FillRect( rect );
+      //DEPRECATED:
+      //painter.FillRect( rect );
+      //NEW:
+      painter.Rectangle( rect );
+      painter.Fill();
 
       painter.SetStrokeWidth( 0.1 );
 
       // black outline
       painter.SetColor( 0, 0, 0 );
-      painter.DrawRect( rect );
+      //DEPRECATED:
+      //painter.DrawRect( rect );
+      //NEW:
+      painter.Rectangle( rect );
+      painter.Stroke();
+      
+      
 
       // insert image
       painter.DrawImage( 388, -33, &image, 0.09, 0.09 );
@@ -210,7 +234,12 @@ void mark_buffer( const char* buffer, long buffer_size, const char *oname, const
 
       painter.SetStrokeWidth( 1.0 );
 
-      painter.DrawCircle( 20, -22, 7 );
+      //DEPRECATD:
+      //painter.DrawCircle( 20, -22, 7 );
+      //NEW:
+      painter.Circle( 20, -22, 7 );
+      painter.Stroke();
+      
 
       pFont->SetFontSize( 16.0 );
       painter.SetFont( pFont );
